@@ -1,2 +1,14 @@
-# ADDexela
-An EPICS areaDetector driver for the Dexela flat-panel amorphous silicon detectors from PerkinElmer. The driver is based upon the DexelaDetector SDK library provided by PerkinElmer. It only runs on Microsoft Windows and supports both 32-bit and 64-bit versions of Windows. 
+ADDexela
+========
+An 
+[EPICS](http://www.aps.anl.gov/epics)
+[areaDetector](http://cars.uchicago.edu/software/epics/areaDetector.html)
+driver for 
+[Dexela](http://www.perkinelmer.com/imaging-components/detectors/dexela-cmos/index.html) 
+detectors from 
+[Perkin Elmer](http://www.perkinelmer.com).
+
+
+Additional information:
+* [Documentation](http://cars.uchicago.edu/software/epics/DexelaDoc.html).
+* [Release notes and links to source and binary releases](RELEASE.md).
