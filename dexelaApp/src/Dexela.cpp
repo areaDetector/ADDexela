@@ -162,10 +162,10 @@ Dexela::Dexela(const char *portName,  int detIndex,
   createParam(DEX_GainFileString,                    asynParamOctet,   &DEX_GainFile);
   createParam(DEX_LoadGainFileString,                asynParamInt32,   &DEX_LoadGainFile);
   createParam(DEX_SaveGainFileString,                asynParamInt32,   &DEX_SaveGainFile);
-  createParam(DEX_UsePixelCorrectionString,          asynParamInt32,   &DEX_UsePixelCorrection);
-  createParam(DEX_PixelCorrectionAvailableString,    asynParamInt32,   &DEX_PixelCorrectionAvailable);
-  createParam(DEX_PixelCorrectionFileString,         asynParamOctet,   &DEX_PixelCorrectionFile);
-  createParam(DEX_LoadPixelCorrectionFileString,     asynParamInt32,   &DEX_LoadPixelCorrectionFile);
+  createParam(DEX_UseDefectMapString,                asynParamInt32,   &DEX_UseDefectMap);
+  createParam(DEX_DefectMapAvailableString,          asynParamInt32,   &DEX_DefectMapAvailable);
+  createParam(DEX_DefectMapFileString,               asynParamOctet,   &DEX_DefectMapFile);
+  createParam(DEX_LoadDefectMapFileString,           asynParamInt32,   &DEX_LoadDefectMapFile);
   createParam(DEX_SoftwareTriggerString,             asynParamInt32,   &DEX_SoftwareTrigger);
   createParam(DEX_CorrectionsDirectoryString,        asynParamOctet,   &DEX_CorrectionsDirectory);
 
@@ -176,10 +176,10 @@ Dexela::Dexela(const char *portName,  int detIndex,
   setIntegerParam(DEX_OffsetAvailable, NOT_AVAILABLE);
   setIntegerParam(DEX_AcquireGain, 0);
   setIntegerParam(DEX_GainAvailable, NOT_AVAILABLE);
-  setIntegerParam(DEX_PixelCorrectionAvailable, NOT_AVAILABLE);
+  setIntegerParam(DEX_DefectMapAvailable, NOT_AVAILABLE);
   setStringParam (DEX_CorrectionsDirectory, "");
   setStringParam (DEX_GainFile, "");
-  setStringParam (DEX_PixelCorrectionFile, "");
+  setStringParam (DEX_DefectMapFile, "");
 
   try {
     pBusScanner_ = new BusScanner();
@@ -332,7 +332,7 @@ void Dexela::newFrameCallback(int frameCounter, int bufferNumber)
   int           gainCounter;
   int           useOffset;
   int           useGain;
-  int           usePixelCorrection;
+  int           useDefectMap;
   int           frameType;
   size_t        dims[2];
   NDArray       *pImage;
@@ -351,7 +351,7 @@ void Dexela::newFrameCallback(int frameCounter, int bufferNumber)
   getIntegerParam(ADFrameType, &frameType);
   getIntegerParam(DEX_UseOffset, &useOffset);
   getIntegerParam(DEX_UseGain, &useGain);
-  getIntegerParam(DEX_UsePixelCorrection, &usePixelCorrection);
+  getIntegerParam(DEX_UseDefectMap, &useDefectMap);
 
   switch (frameType) {
     case ADFrameBackground:
@@ -548,8 +548,8 @@ asynStatus Dexela::writeInt32(asynUser *pasynUser, epicsInt32 value)
   else if (function == DEX_SaveGainFile) {
     saveGainFile();
   }
-  else if (function == DEX_LoadPixelCorrectionFile) {
-    loadPixelCorrectionFile();
+  else if (function == DEX_LoadDefectMapFile) {
+    loadDefectMapFile();
   }
 
   else {
@@ -692,63 +692,55 @@ void Dexela::acquireStart(void)
 
   setShutter(ADShutterOpen);
   switch (imageMode) {
-    case DEXImageSingle:
-      break;
-    case DEXImageMultiple:
     case DEXImageContinuous:
+      pDetector_->SetExposureMode(Sequence_Exposure);
+      pDetector_->SetNumOfExposures(numImages);
+      pDetector_->GoLiveSeq();
+      pDetector_->ToggleGenerator(true);
       break;
+    case DEXImageSingle:
+      numImages = 1;
+    case DEXImageMultiple:
     case DEXImageAverage:
+      pDetector_->SetExposureMode(Sequence_Exposure);
+      pDetector_->SetNumOfExposures(numImages);
+      pDetector_->GoLiveSeq();
+      pDetector_->ToggleGenerator(true);
       break;
   }
 }
 
+//_____________________________________________________________________________________________
+
+/** Stop acquisition */
+void Dexela::acquireStop(void)
+{
+  setShutter(ADShutterClosed);
+  pDetector_->ToggleGenerator(false);
+  pDetector_->GoUnLive();
+}
 
 //_____________________________________________________________________________________________
 
 /** Acquires an offset image */
-void Dexela::acquireOffsetImage (void)
+void Dexela::acquireOffsetImage(void)
 {
-  int iFrames;
-  int status = asynSuccess;
-  unsigned int uiPEResult;
+  int numFrames;
   const char   *functionName = "acquireOffsetImage";
 
-  getIntegerParam(DEX_NumOffsetFrames, &iFrames);
+  getIntegerParam(DEX_NumOffsetFrames, &numFrames);
 
-  asynPrint(pasynUserSelf, ASYN_TRACE_FLOW,
-    "%s:%s: Frames: %d, Rows: %d, Columns: %d\n",
-    driverName, functionName, iFrames, uiRows_, uiColumns_);
-
-  if (pOffsetBuffer_ != NULL)
-    free (pOffsetBuffer_);
-  pOffsetBuffer_ = (epicsUInt16 *) malloc(sizeof(epicsUInt16) * uiRows_ * uiColumns_);
-  if (pOffsetBuffer_ == NULL)
-  {
-    asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-      "%s:%s: Error:  Memory allocation failed for offset buffer!\n",
-      driverName, functionName);
-    return;
-  }
-
-  memset (pOffsetBuffer_, 0, sizeof(epicsUInt16) * uiRows_ * uiColumns_);
-
-  iAcqMode_ = DEX_ACQUIRE_OFFSET;
+  setIntegerParam(ADFrameType, ADFrameBackground);
   setIntegerParam(DEX_CurrentOffsetFrame, 0);
   setIntegerParam(DEX_OffsetAvailable, NOT_AVAILABLE);
   
   // Make sure the shutter is closed
   setShutter(ADShutterClosed);
-
-  if ((uiPEResult = Acquisition_Acquire_OffsetImage(hAcqDesc_, pOffsetBuffer_, 
-                                                    uiRows_, uiColumns_, iFrames)) != HIS_ALL_OK)
-    asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-      "%s:%s: Error: %d Acquisition_Acquire_OffsetImage failed!\n", 
-      driverName, functionName, uiPEResult);
-
-  asynPrint(pasynUserSelf, ASYN_TRACE_FLOW,
-    "%s:%s: Offset acquisition started...\n",
-    driverName, functionName);
-
+  
+  pDetector_->SetExposureMode(Sequence_Exposure);
+  pDetector_->SetNumOfExposures(numFrames);
+  pDetector_->GoLiveSeq();
+  pDetector_->ToggleGenerator(true);
 }
 
 //_____________________________________________________________________________________________
@@ -756,43 +748,22 @@ void Dexela::acquireOffsetImage (void)
 /** Acquires a gain image */
 void Dexela::acquireGainImage(void)
 {
-  int iFrames;
-  int status = asynSuccess;
-  unsigned int uiPEResult;
-  const char  *functionName = "acquireGainImage";
+  int numFrames;
+  const char   *functionName = "acquireOffsetImage";
 
-  getIntegerParam(DEX_NumGainFrames, &iFrames);
+  getIntegerParam(DEX_NumGainFrames, &numFrames);
 
-  asynPrint(pasynUserSelf, ASYN_TRACE_FLOW,
-    "%s:%s: Frames: %d, Rows: %d, Columns: %d\n",
-    driverName, functionName, iFrames, uiRows_, uiColumns_);
-
-  if (pGainBuffer_ != NULL)
-  free (pGainBuffer_);
-  pGainBuffer_ = (DWORD *) malloc(uiRows_ * uiColumns_ * sizeof(DWORD));
-  if (pGainBuffer_ == NULL)
-  {
-    asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-      "%s:%s: Error:  Memory allocation failed for gain buffer!\n",
-      driverName, functionName);
-    return;
-  }
-
-  iAcqMode_ = DEX_ACQUIRE_GAIN;
+  setIntegerParam(ADFrameType, ADFrameFlatField);
   setIntegerParam(DEX_CurrentGainFrame, 0);
   setIntegerParam(DEX_GainAvailable, NOT_AVAILABLE);
+  
+  // Make sure the shutter is open
   setShutter(ADShutterOpen);
-
-  if ((uiPEResult = Acquisition_Acquire_GainImage(hAcqDesc_, pOffsetBuffer_, pGainBuffer_, 
-                                                  uiRows_, uiColumns_, iFrames)) != HIS_ALL_OK)
-    asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-      "%s:%s: Error: %d Acquisition_Acquire_GainImage failed!\n", 
-      driverName, functionName, uiPEResult);
-
-  asynPrint(pasynUserSelf, ASYN_TRACE_FLOW,
-    "%s:%s: Gain acquisition started...\n",
-    driverName, functionName);
-
+  
+  pDetector_->SetExposureMode(Sequence_Exposure);
+  pDetector_->SetNumOfExposures(numFrames);
+  pDetector_->GoLiveSeq();
+  pDetector_->ToggleGenerator(true);
 }
 
 //_____________________________________________________________________________________________
@@ -800,66 +771,16 @@ void Dexela::acquireGainImage(void)
 /** Saves a gain file */
 asynStatus Dexela::saveGainFile(void)
 {
-  int iSizeX;
-  int iSizeY;
-  int iByteDepth;
-  int status = asynSuccess;
-  char gainPath[256];
-  char gainFile[256];
-  FILE  *pOutputFile;
+  char filePath[256];
+  char fileName[256];
   static const char *functionName = "saveGainFile";
 
-  asynPrint(pasynUserSelf, ASYN_TRACE_FLOW,
-    "%s:%s:, Saving correction files...\n",
-    driverName, functionName);
+  getStringParam(DEX_CorrectionsDirectory, sizeof(filePath), filePath);
+  getStringParam(DEX_GainFile, sizeof(fileName), fileName);
+  strcat(filePath, fileName);
 
-  status |= getStringParam(DEX_CorrectionsDirectory, sizeof(gainPath), gainPath);
-  status |= getStringParam(DEX_GainFile, sizeof(gainFile), gainFile);
-  strcat(gainPath, gainFile);
-  status |= getIntegerParam(NDArraySizeX, &iSizeX);
-  status |= getIntegerParam(NDArraySizeY, &iSizeY);
-
-  if (pGainBuffer_ == NULL) return asynError;
-
-  asynPrint(pasynUserSelf, ASYN_TRACE_FLOW,
-    "%s:%s:, saving gain file: %s\n",
-    driverName, functionName, gainPath);
-
-  pOutputFile = fopen (gainPath, "wb");
-
-  if (pOutputFile == NULL) {
-    asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-      "%s:%s: Error opening gain file %s\n", 
-      driverName, functionName, gainFile);
-    return asynError;
-  }
-  iByteDepth = sizeof (DWORD);
-
-  fwrite ((void *) &iSizeX, sizeof (int), 1, pOutputFile);
-  fwrite ((void *) &iSizeY, sizeof (int), 1, pOutputFile);
-  fwrite ((void *) &iByteDepth, sizeof (int), 1, pOutputFile);
-  if (ferror (pOutputFile)) {
-    asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-      "%s:%s: Failed to write file header for file %s\n", 
-      driverName, functionName, gainFile);
-    fclose (pOutputFile);
-    return asynError;
-  }
-
-  fwrite (pGainBuffer_, iByteDepth, iSizeX*iSizeY, pOutputFile);
-  if (ferror (pOutputFile)) {
-    asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-      "%s:%s: Failed to write data for file %s\n", 
-      driverName, functionName, gainFile);
-    fclose (pOutputFile);
-    return asynError;
-  }
-
-  fclose (pOutputFile);
-
-  asynPrint(pasynUserSelf, ASYN_TRACE_FLOW,
-    "%s:%s:, Gain file %s saved.\n",
-    driverName, functionName, gainFile);
+  if (gainImage_.IsEmpty()) return asynError;
+  gainImage_.WriteImage(filePath);
   return asynSuccess;
 }
 
@@ -869,180 +790,31 @@ asynStatus Dexela::saveGainFile(void)
 /** Loads a gain file */
 asynStatus Dexela::loadGainFile (void)
 {
-  int status = asynSuccess;
-  char gainPath[256];
-  char gainFile[256];
-  int iSizeX, iSizeY, iByteDepth;
-  FILE  *pInputFile;
-  struct stat stat_buffer;
+  char filePath[256];
+  char fileName[256];
   static const char *functionName = "loadGainFile";
 
-  asynPrint(pasynUserSelf, ASYN_TRACE_FLOW,
-    "%s:%s: Loading gain file...\n",
-    driverName, functionName);
+  getStringParam(DEX_CorrectionsDirectory, sizeof(filePath), filePath);
+  getStringParam(DEX_GainFile, sizeof(fileName), fileName);
+  strcat(filePath, fileName);
 
-  status |= getStringParam(DEX_CorrectionsDirectory, sizeof(gainPath), gainPath);
-  status |= getStringParam(DEX_CorrectionsDirectory, sizeof(gainFile), gainFile);
-  strcat(gainPath, gainFile);
-
-  asynPrint(pasynUserSelf, ASYN_TRACE_FLOW,
-    "%s:%s:, Gain correction file name: %s\n",
-    driverName, functionName, gainPath);
-  if ((stat (gainPath, &stat_buffer) != 0)|| (stat_buffer.st_mode & S_IFREG) == 0) {
-    asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-      "%s:%s: Failed to find gain correction file %s\n", 
-      driverName, functionName, gainPath);
-    return asynError;
-  }
-  if (pGainBuffer_ != NULL)
-    free (pGainBuffer_);
-
-  pInputFile = fopen (gainPath, "rb");
-  if (pInputFile == NULL) {
-    asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-      "%s:%s: Failed to open gain correction file %s\n", 
-      driverName, functionName, gainPath);
-    return asynError;
-  }
-  fread (&iSizeX, sizeof (int), 1, pInputFile);
-  fread (&iSizeY, sizeof (int), 1, pInputFile);
-  fread (&iByteDepth, sizeof (int), 1, pInputFile);
-  if (ferror (pInputFile)) {
-    asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-      "%s:%s: Failed to read file header for gain correction file %s\n", 
-      driverName, functionName, gainPath);
-    return asynError;
-  }
-  pGainBuffer_ = (DWORD *) malloc (iSizeX * iSizeY * iByteDepth);
-  fread (pGainBuffer_, iByteDepth, iSizeX * iSizeY, pInputFile);
-  if (ferror (pInputFile)) {
-    asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-      "%s:%s: Failed to read data for gain correction file %s\n", 
-      driverName, functionName, gainPath);
-    return asynError;
-  }
-
-  fclose (pInputFile);
-
-  status |= setIntegerParam(DEX_GainAvailable, AVAILABLE);
-  callParamCallbacks();
-
-  asynPrint(pasynUserSelf, ASYN_TRACE_FLOW,
-    "%s:%s:, Gain file %s loaded\n",
-    driverName, functionName, gainPath);
+  gainImage_.ReadImage(filePath);
   return asynSuccess;
-
 }
 //_____________________________________________________________________________________________
 
-/** Loads a pixel correction file */
-asynStatus Dexela::loadPixelCorrectionFile()
+/** Loads a defect file */
+asynStatus Dexela::loadDefectMapFile()
 {
-  FILE                *pInputFile;
-  WinHeaderType       file_header;
-  WinImageHeaderType  image_header;
-  int                 iBufferSize;
-  int                 iCorrectionMapSize;
-  unsigned int        uiStatus;
-  char                pixelCorrectionFile[256];
-  char                pixelCorrectionPath[256];
-  struct              stat stat_buffer;
-  static const char   *functionName = "readPixelCorrectionFile";
-  
-  setIntegerParam(DEX_PixelCorrectionAvailable, NOT_AVAILABLE);
+  char filePath[256];
+  char fileName[256];
+  static const char *functionName = "loadDefectFile";
 
-  getStringParam(DEX_PixelCorrectionFile, sizeof(pixelCorrectionFile), pixelCorrectionFile);
-  getStringParam(DEX_CorrectionsDirectory, sizeof(pixelCorrectionPath), pixelCorrectionPath);
-  strcat(pixelCorrectionPath, pixelCorrectionFile);
-  asynPrint(pasynUserSelf, ASYN_TRACE_FLOW,
-    "%s:%s:, Pixel correction file name: %s\n",
-    driverName, functionName, pixelCorrectionPath);
-  if ((stat (pixelCorrectionPath, &stat_buffer) != 0) || (stat_buffer.st_mode & S_IFREG) == 0) {
-    asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-      "%s:%s: error opening pixel correction file %s\n",
-      driverName, functionName, pixelCorrectionPath);
-    return asynError;
-  }
-  
-  pInputFile = fopen(pixelCorrectionPath, "r");
+  getStringParam(DEX_CorrectionsDirectory, sizeof(filePath), filePath);
+  getStringParam(DEX_DefectMapFile, sizeof(fileName), fileName);
+  strcat(filePath, fileName);
 
-  if (pInputFile == NULL)
-  {
-    asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-    "%s:%s: Failed to open file %s\n", 
-    driverName, functionName, pixelCorrectionPath);
-    return asynError;
-  }
-
-  //read file header
-  fread((void *) &file_header, 68, 1, pInputFile);
-  if (ferror(pInputFile))
-  {
-    asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-      "%s:%s: Failed to read file header from file %s\n", 
-      driverName, functionName, pixelCorrectionPath);
-    return asynError;
-  }
-
-
-  //read image header
-  fread((void *) &image_header, 32, 1, pInputFile);
-  if (ferror (pInputFile))
-  {
-    asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-      "%s:%s: Failed to read image header from file %s\n", 
-      driverName, functionName, pixelCorrectionPath);
-    return asynError;
-  }
-
-  //read bad pixel map
-  if (pBadPixelMap_ != NULL)
-    free (pBadPixelMap_);
-  iBufferSize = file_header.ULY * file_header.BRX * sizeof (epicsUInt16);
-  pBadPixelMap_ = (epicsUInt16 *) malloc (iBufferSize);
-  asynPrint(pasynUserSelf, ASYN_TRACE_FLOW,
-    "%s:%s: buffer size: %d, pBadPixelMap: %d\n", 
-    driverName, functionName, iBufferSize, pBadPixelMap_);
-  if (pBadPixelMap_ == NULL)
-  {
-    asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-      "%s:%s: Failed to allocate bad pixel map buffer\n", 
-      driverName, functionName);
-    return asynError;
-  }
-  fread ((void *) pBadPixelMap_, iBufferSize, 1, pInputFile);
-  if (ferror (pInputFile))
-  {
-    asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-      "%s:%s: Failed to read bad pixel map from file %s\n", 
-      driverName, functionName, pixelCorrectionPath);
-    free (pBadPixelMap_);
-    pBadPixelMap_ = NULL;
-    return asynError;
-  }
-
-  fclose (pInputFile);
-
-  int counter = 0;
-  for (int loop=0;loop<file_header.ULY * file_header.BRX;loop++)
-  {
-    if (pBadPixelMap_[loop] == 65535)
-      counter++;
-  }
-  asynPrint(pasynUserSelf, ASYN_TRACE_FLOW,
-    "%s:%s: Bad pixel map read in: %d bad pixels found\n", 
-    driverName, functionName, counter);
-
-  //first call with correction list = NULL returns size of buffer to allocate
-  //second time gets the correction list
-  uiStatus = Acquisition_CreatePixelMap (pBadPixelMap_, file_header.ULY, file_header.BRX, NULL, &iCorrectionMapSize);
-  pPixelCorrectionList_ = (int *) malloc (iCorrectionMapSize);
-  uiStatus = Acquisition_CreatePixelMap (pBadPixelMap_, file_header.ULY, file_header.BRX, pPixelCorrectionList_, &iCorrectionMapSize);
-
-  free (pBadPixelMap_);
-  pBadPixelMap_ = NULL;
-
-  setIntegerParam(DEX_PixelCorrectionAvailable, AVAILABLE);
+  defectMapImage_.ReadImage(filePath);
   return asynSuccess;
 }
 

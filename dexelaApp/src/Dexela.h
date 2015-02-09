@@ -34,11 +34,10 @@
 #define DEX_GainFileString                   "DEX_GAIN_FILE"
 #define DEX_LoadGainFileString               "DEX_LOAD_GAIN_FILE"
 #define DEX_SaveGainFileString               "DEX_SAVE_GAIN_FILE"
-#define DEX_UsePixelCorrectionString         "DEX_USE_PIXEL_CORRECTION"
-#define DEX_PixelCorrectionAvailableString   "DEX_PIXEL_CORRECTION_AVAILABLE"
-#define DEX_PixelCorrectionFileString        "DEX_PIXEL_CORRECTION_FILE"
-#define DEX_LoadPixelCorrectionFileString    "DEX_LOAD_PIXEL_CORRECTION_FILE"
-#define DEX_NumFrameBuffersString            "DEX_NUM_FRAME_BUFFERS"
+#define DEX_UseDefectMapString               "DEX_USE_DEFECT_MAP"
+#define DEX_DefectMapAvailableString         "DEX_DEFECT_MAP_AVAILABLE"
+#define DEX_DefectMapFileString              "DEX_DEFECT_MAP_FILE"
+#define DEX_LoadDefectMapFileString          "DEX_LOAD_DEFECT_MAP_FILE"
 #define DEX_SoftwareTriggerString            "DEX_SOFTWARE_TRIGGER"
 
 
@@ -83,11 +82,10 @@ protected:
   int DEX_GainFile;
   int DEX_LoadGainFile;
   int DEX_SaveGainFile;
-  int DEX_UsePixelCorrection;
-  int DEX_PixelCorrectionAvailable;
-  int DEX_PixelCorrectionFile;
-  int DEX_LoadPixelCorrectionFile;
-  int DEX_DwellTime;
+  int DEX_UseDefectMap;
+  int DEX_DefectMapAvailable;
+  int DEX_DefectMapFile;
+  int DEX_LoadDefectMapFile;
   int DEX_SoftwareTrigger;
   #define DEX_LAST_PARAM DEX_SoftwareTrigger
 
@@ -98,12 +96,12 @@ private:
   BusScanner     *pBusScanner_;
   DexImage       offsetImage_;
   DexImage       gainImage_;
+  DexImage       defectMapImage_;
   DexImage       dataImage_;
   int            sensorX_;
   int            sensorY_;
   char           modelName_[80];
   int            serialNumber_;
-  epicsEventId  acquireStopEvent_;
 
   void reportSensors(FILE *fp, int details);
   void acquireStart(void);
@@ -112,7 +110,7 @@ private:
   void acquireGainImage(void);
   asynStatus loadGainFile(void);
   asynStatus saveGainFile(void);
-  asynStatus loadPixelCorrectionFile();
+  asynStatus loadDefectMapFile();
 };
 
 #define NUM_DEXELA_PARAMS ((int)(&DEX_LAST_PARAM - &DEX_FIRST_PARAM + 1))
