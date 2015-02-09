@@ -11,28 +11,20 @@
  *
  */
 
-#include <sys/stat.h>
-
-#include <stddef.h>
 #include <stdlib.h>
-#include <stdarg.h>
-#include <math.h>
 #include <stdio.h>
-#include <errno.h>
 #include <string.h>
 
 #include <epicsTime.h>
 #include <epicsThread.h>
-#include <epicsEvent.h>
 #include <epicsExit.h>
-#include <epicsMutex.h>
 #include <epicsString.h>
 #include <epicsStdio.h>
-#include <epicsMutex.h>
-#include <cantProceed.h>
 #include <iocsh.h>
 
 #include "ADDriver.h"
+
+using namespace std;
 
 #include "BusScanner.h"
 #include "DexelaDetector.h"
@@ -41,72 +33,49 @@
 
 #include "Dexela.h"
 
+
 static const char *driverName = "Dexela";
 
+typedef struct {
+  int value;
+  const char* string;
+} enumStruct_t;
+
+#define MAX_BINNING 10
+static enumStruct_t binEnums[MAX_BINNING]= {
+  {x11,  "Unbinned"},
+  {x12,  "1H x 2V"},
+  {x14,  "1H x 4V"},
+  {x21,  "2H x 1V"},
+  {x22,  "2H x 2V"},
+  {x24,  "2H x 4V"},
+  {x41,  "4H x 1V"},
+  {x42,  "4H x 2V"},
+  {x44,  "4H x 4V"},
+  {ix22, "2H x 2V digital"}
+};
+
+#define MAX_TRIGGERS 3
+static enumStruct_t triggerEnums[MAX_TRIGGERS]= {
+  {Internal_Software, "Internal"},
+  {Ext_neg_edge_trig, "Ext. neg. edge"},
+  {Ext_Duration_Trig, "Bulb"}
+};
+
+#define MAX_FULL_WELL 2
+static enumStruct_t fullWellEnums[MAX_FULL_WELL]= {
+  {Low,  "Low noise"},
+  {High, "High dynamic range"}
+};
+
+// We add an additional mode to ADImageMode = DEXImageAverage
 typedef enum
 {
-  DEX_ACQUIRE_ACQUISITION,
-  DEX_ACQUIRE_OFFSET,
-  DEX_ACQUIRE_GAIN
-} PEAcquisitionMode_t;
-
-// We add an additional mode to ADImageMode = PEImageAverage
-
-typedef enum
-{
-  PEImageSingle     = ADImageSingle,
-  PEImageMultiple   = ADImageMultiple,
-  PEImageContinuous = ADImageContinuous,
-  PEImageAverage
-} PEImageMode_t;
-
-typedef enum
-{
-  DEX_INTERNAL_TRIGGER,
-  DEX_EXTERNAL_TRIGGER,
-  DEX_FREE_RUNNING,
-  DEX_SOFT_TRIGGER
-} PETimingMode_t;
-
-#define TIME0        0
-#define TIME0_STR    "66.5ms"
-#define TIME1        1
-#define TIME1_STR    "79.9ms"
-#define TIME2        2
-#define TIME2_STR    "99.8ms"
-#define TIME3        3
-#define TIME3_STR    "133.2ms"
-#define TIME4        4
-#define TIME4_STR    "199.9ms"
-#define TIME5        5
-#define TIME5_STR    "400.0ms"
-#define TIME6        6
-#define TIME6_STR    "999.8ms"
-#define TIME7        7
-#define TIME7_STR    "1999.8ms"
-
-
-#define GAIN0        0
-#define GAIN0_STR    "0.25pF"
-#define GAIN1        1
-#define GAIN1_STR    "0.5pF"
-#define GAIN2        2
-#define GAIN2_STR    "1pF"
-#define GAIN3        3
-#define GAIN3_STR    "2pF"
-#define GAIN4        4
-#define GAIN4_STR    "4pF"
-#define GAIN5        5
-#define GAIN5_STR    "8pF"
-
-typedef enum
-{
-  DEX_STATUS_OK,
-  DEX_STATUS_INITIALIZING,
-  DEX_STATUS_RUNNING_OFFSET,
-  DEX_STATUS_RUNNING_GAIN,
-  DEX_STATUS_ERROR
-} PEStatus_t;
+  DEXImageSingle     = ADImageSingle,
+  DEXImageMultiple   = ADImageMultiple,
+  DEXImageContinuous = ADImageContinuous,
+  DEXImageAverage
+} DEXImageMode_t;
 
 typedef enum
 {
@@ -114,19 +83,11 @@ typedef enum
   AVAILABLE
 } Avalability_t;
 
-typedef enum
-{
-  NO,
-  YES
-} YesNo_t;
-
-
 // I don't yet know how to pass a pointer to "this" to their frame callback function.
 // For now we set this to a static variable, which limits one to a single instance of this class per process
 static Dexela *pGlobalDexela;
 
 // Forward function definitions
-static void acquireStopTaskC(void *drvPvt);
 static void exitCallbackC(void *drvPvt);
 
 //_____________________________________________________________________________________________
@@ -141,16 +102,16 @@ static void exitCallbackC(void *drvPvt);
   * \param[in] priority The thread priority for the asyn port driver thread if ASYN_CANBLOCK is set in asynFlags.
   * \param[in] stackSize The stack size for the asyn port driver thread if ASYN_CANBLOCK is set in asynFlags.
   */
-extern "C" int DexelaConfig(const char *portName, int detIndex, int numFrameBuffers, 
+extern "C" int DexelaConfig(const char *portName, int detIndex,
                                  int maxBuffers, size_t maxMemory, int priority, int stackSize)
 {
-    new Dexela(portName, detIndex, numFrameBuffers, maxBuffers, maxMemory, priority, stackSize);
+    new Dexela(portName, detIndex, maxBuffers, maxMemory, priority, stackSize);
     return(asynSuccess);
 }
 
 //_____________________________________________________________________________________________
 
-/** callback function that is called by Dexela SDK for each frame */
+// Callback function that is called by Dexela SDK for each frame
 static void newFrameCallback(int frameCounter, int bufferNumber, DexelaDetector *pDet)
 {
   pGlobalDexela->newFrameCallback(frameCounter, bufferNumber);
@@ -171,29 +132,23 @@ static void newFrameCallback(int frameCounter, int bufferNumber, DexelaDetector 
   * \param[in] stackSize The stack size for the asyn port driver thread if ASYN_CANBLOCK is set in asynFlags.
   */
 
-Dexela::Dexela(const char *portName,  int detIndex, int numFrameBuffers, 
+Dexela::Dexela(const char *portName,  int detIndex, 
                          int maxBuffers, size_t maxMemory, int priority, int stackSize)
 
-    : ADDriver(portName, 1, (int)NUM_DEXELA_PARAMS, maxBuffers, maxMemory, asynEnumMask, 0, ASYN_CANBLOCK, 1, priority, stackSize)
+    : ADDriver(portName, 1, (int)NUM_DEXELA_PARAMS, maxBuffers, maxMemory, 
+               asynEnumMask, 0, ASYN_CANBLOCK, 1, priority, stackSize)
 {
   int status = asynSuccess;
   static const char *functionName = "Dexela";
   
   int numDevices;
-  int sensorX, sensorY;
-  char modelName[80];
   
   pGlobalDexela = this;
   
-  pAcqBuffer_           = NULL;
-  pOffsetBuffer_        = NULL;
-  pGainBuffer_          = NULL;
-  pBadPixelMap_         = NULL;
-  pPixelCorrectionList_ = NULL;
-  
   /* Add parameters for this driver */
   createParam(DEX_SerialNumberString,                asynParamInt32,   &DEX_SerialNumber);
-  createParam(DEX_InitializeString,                  asynParamInt32,   &DEX_Initialize);
+  createParam(DEX_BinningModeString,                 asynParamInt32,   &DEX_BinningMode);
+  createParam(DEX_FullWellModeString,                asynParamInt32,   &DEX_FullWellMode);
   createParam(DEX_AcquireOffsetString,               asynParamInt32,   &DEX_AcquireOffset);
   createParam(DEX_NumOffsetFramesString,             asynParamInt32,   &DEX_NumOffsetFrames);
   createParam(DEX_CurrentOffsetFrameString,          asynParamInt32,   &DEX_CurrentOffsetFrame);
@@ -211,23 +166,12 @@ Dexela::Dexela(const char *portName,  int detIndex, int numFrameBuffers,
   createParam(DEX_PixelCorrectionAvailableString,    asynParamInt32,   &DEX_PixelCorrectionAvailable);
   createParam(DEX_PixelCorrectionFileString,         asynParamOctet,   &DEX_PixelCorrectionFile);
   createParam(DEX_LoadPixelCorrectionFileString,     asynParamInt32,   &DEX_LoadPixelCorrectionFile);
-  createParam(DEX_GainString,                        asynParamInt32,   &DEX_Gain);
-  createParam(DEX_DwellTimeString,                   asynParamInt32,   &DEX_DwellTime);
-  createParam(DEX_NumFrameBuffersString,             asynParamInt32,   &DEX_NumFrameBuffers);
-  createParam(DEX_TriggerString,                     asynParamInt32,   &DEX_Trigger);
-  createParam(DEX_SyncTimeString,                    asynParamInt32,   &DEX_SyncTime);
+  createParam(DEX_SoftwareTriggerString,             asynParamInt32,   &DEX_SoftwareTrigger);
   createParam(DEX_CorrectionsDirectoryString,        asynParamOctet,   &DEX_CorrectionsDirectory);
-  createParam(DEX_FrameBufferIndexString,            asynParamInt32,   &DEX_FrameBufferIndex);
-  createParam(DEX_ImageNumberString,                 asynParamInt32,   &DEX_ImageNumber);
-  createParam(DEX_SkipFramesString,                  asynParamInt32,   &DEX_SkipFrames);
-  createParam(DEX_NumFramesToSkipString,             asynParamInt32,   &DEX_NumFramesToSkip);
 
   /* Set some default values for parameters */
   setIntegerParam(NDArraySize, 0);
   setIntegerParam(NDDataType, NDUInt16);
-  setIntegerParam(DEX_DwellTime, 0);
-  setIntegerParam(DEX_SyncTime, 100);
-  setIntegerParam(DEX_Initialize, 0);
   setIntegerParam(DEX_AcquireOffset, 0);
   setIntegerParam(DEX_OffsetAvailable, NOT_AVAILABLE);
   setIntegerParam(DEX_AcquireGain, 0);
@@ -236,8 +180,6 @@ Dexela::Dexela(const char *portName,  int detIndex, int numFrameBuffers,
   setStringParam (DEX_CorrectionsDirectory, "");
   setStringParam (DEX_GainFile, "");
   setStringParam (DEX_PixelCorrectionFile, "");
-  setIntegerParam(DEX_FrameBufferIndex, 0);
-  setIntegerParam(DEX_ImageNumber, 0);
 
   try {
     pBusScanner_ = new BusScanner();
@@ -258,59 +200,35 @@ Dexela::Dexela(const char *portName,  int detIndex, int numFrameBuffers,
     
     devInfo_ = pBusScanner_->GetDevice(detIndex);
     pDetector_ = new DexelaDetector(devInfo_);
-    sensorX = pDetector_->GetSensorWidth();
-    setIntegerParam(ADMaxSizeX, sensorX);
-    sensorY = pDetector_->GetSensorHeight();
-    setIntegerParam(ADMaxSizeY, sensorY);
+    sensorX_ = pDetector_->GetSensorWidth();
+    setIntegerParam(ADMaxSizeX, sensorX_);
+    sensorY_ = pDetector_->GetSensorHeight();
+    setIntegerParam(ADMaxSizeY, sensorY_);
     setStringParam(ADManufacturer, "Perkin Elmer");
-    sprintf(modelName, "Dexela %d", pDetector_->GetModelNumber());
-    setStringParam(ADModel, modelName);
-    setIntegerParam(DEX_SerialNumber, pDetector_->GetSerialNumber());
+    sprintf(modelName_, "Dexela %d", pDetector_->GetModelNumber());
+    setStringParam(ADModel, modelName_);
+    serialNumber_ = pDetector_->GetSerialNumber();
+    setIntegerParam(DEX_SerialNumber, serialNumber_);
 
     // Connect to board
-    pDetector_->OpenBoard(numFrameBuffers);
+    pDetector_->OpenBoard();
 
     // Set callback
     pDetector_->SetCallback(::newFrameCallback);
 
-    // get int times for selected binning mode
-  Acquisition_GetIntTimes(hAcqDesc_, m_pTimingsListBinning, &timings))!=HIS_ALL_OK)
+    // Enable pulse generator
+   pDetector_->EnablePulseGenerator();
 
-  //  set detector timing mode
-  Acquisition_SetCameraMode(hAcqDesc_, 0))!=HIS_ALL_OK)
-
-  // Get the hardware header information
-  Acquisition_GetHwHeaderInfoEx(hAcqDesc_, &cHwHeaderInfo_, 
-                                                  &cHwHeaderInfoEx_)) != HIS_ALL_OK)
+   // Turn off pulses
+   pDetector_->ToggleGenerator(false);
 
   } catch (DexelaException &e) {
     asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-      "%s:%s: %s\n",
+      "%s::%s %s\n",
       driverName, functionName, e.what());
     return;
   }
  
-  // Update readback values
-  setIntegerParam(ADMaxSizeX, uiColumns_);
-  setIntegerParam(ADMaxSizeY, uiRows_);
-  setIntegerParam(ADSizeX, uiColumns_);
-  setIntegerParam(ADSizeY, uiRows_);
-  setIntegerParam(NDArraySizeX, uiColumns_);
-  setIntegerParam(NDArraySizeY, uiRows_);
-  setIntegerParam(DEX_SystemID, dwSystemID_);
-  setIntegerParam(DEX_Gain, iGain);
-  setIntegerParam(DEX_DwellTime, iTimeIndex);
-  setIntegerParam(DEX_NumFrameBuffers, uiNumFrameBuffers_);
-  setIntegerParam(ADStatus, ADStatusIdle);
- 
-   acquireStopEvent_ = epicsEventCreate(epicsEventEmpty);
-  /* Create the thread that updates the images */
-  status = (epicsThreadCreate("acquireStopTaskC",
-                              epicsThreadPriorityMedium,
-                              epicsThreadGetStackSize(epicsThreadStackMedium),
-                              (EPICSTHREADFUNC)acquireStopTaskC,
-                              this) == NULL);
-  
   // Set exit handler to clean up
   epicsAtExit(exitCallbackC, this);
 
@@ -331,82 +249,9 @@ static void exitCallbackC(void *pPvt)
 
 Dexela::~Dexela()
 {
-  Acquisition_Close (hAcqDesc_);
-
-  if (pAcqBuffer_ != NULL)
-    free(pAcqBuffer_);
-
-  if (pOffsetBuffer_ != NULL)
-    free(pOffsetBuffer_);
-
-  if (pGainBuffer_ != NULL)
-    free(pGainBuffer_);
-
-  if (pBadPixelMap_ != NULL)
-    free(pBadPixelMap_);
-
-  if (pPixelCorrectionList_ != NULL)
-    free(pPixelCorrectionList_);
+  pDetector_->CloseBoard();
 }
 
-
-//_____________________________________________________________________________________________
-
-/** Configures the detector binning according to the ADBinX and ADBinY parameters */
-void Dexela::setBinning(void)
-{
-  unsigned int uiPEResult;
-  int binX, binY, sizeX, sizeY;
-  int status;
-  bool validBinning = true;
-  WORD PEBinning;
-  int averageBinning = 256;
-  int accumulateBinning = 512;
-  static const char *functionName = "setBinning";
-
-  status = getIntegerParam(ADBinX, &binX);
-  status |= getIntegerParam(ADBinY, &binY);
-  // If either binning is not defined return because it has not yet
-  // been initialized, but we will be called again when it is.
-  if (status) return;
-  getIntegerParam(ADMaxSizeX, &sizeX);
-  getIntegerParam(ADMaxSizeY, &sizeY);
-
-  if ((cHwHeaderInfo_.dwHeaderID >= 14) && 
-      (cHwHeaderInfoEx_.wCameratype >= 2)) {
-    if      ((binX == 1) && (binY == 1)) PEBinning = 1;
-    else if ((binX == 2) && (binY == 2)) PEBinning = 2;
-    else if ((binX == 4) && (binY == 4)) PEBinning = 3;
-    else if ((binX == 1) && (binY == 2)) PEBinning = 4;
-    else if ((binX == 1) && (binY == 4)) PEBinning = 5;
-    else validBinning = false;
-    // Hardcode average style binning for now
-    PEBinning = PEBinning + averageBinning;
-  } else {
-    if      ((binX == 1) && (binY == 1)) PEBinning = 0;
-    else if ((binX == 2) && (binY == 2)) PEBinning = 1;
-    else validBinning = false;
-  }
-  
-  if (validBinning) {
-    uiPEResult = Acquisition_SetCameraBinningMode(hAcqDesc_, PEBinning);
-    if (uiPEResult != HIS_ALL_OK) {
-      asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-        "%s:%s:  Error: %d  Acquisition_SetCameraBinningMode failed!\n", 
-        driverName, functionName, uiPEResult);
-      return;
-    }
-    uiColumns_ = sizeX/binX;
-    uiRows_    = sizeY/binY;
-    asynPrint(pasynUserSelf, ASYN_TRACE_FLOW,
-      "%s:%s:  set binning %d x %d, PEBinning=%d\n", 
-      driverName, functionName, binX, binY, PEBinning);
-  } else {
-    asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-      "%s:%s:  invalid binning %d x %d\n", 
-      driverName, functionName, binX, binY);
-  }
-}
 
 //_____________________________________________________________________________________________
 
@@ -418,186 +263,69 @@ void Dexela::setBinning(void)
   * \param[in] details Controls the level of detail in the report. */
 void Dexela::report(FILE *fp, int details)
 {
-  unsigned int uiPEResult;
+  int dataType;
   static const char *functionName = "report";
 
-  // Get the hardware header information
-  if ((uiPEResult = Acquisition_GetHwHeaderInfoEx(hAcqDesc_, &cHwHeaderInfo_, 
-                                                  &cHwHeaderInfoEx_)) != HIS_ALL_OK)
-  {
-    asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-      "%s:%s: Error: %d GetHwHeaderInfoEx failed!\n", 
-      driverName, functionName, uiPEResult);
-    return;
-  }
-  fprintf(fp, "Dexela %s\n", this->portName);
-  if (details > 0) {
-    int nx, ny, dataType;
-    getIntegerParam(ADSizeX, &nx);
-    getIntegerParam(ADSizeY, &ny);
-    getIntegerParam(NDDataType, &dataType);
-    fprintf(fp, "  Number of rows:    %d\n", nx);
-    fprintf(fp, "  Number of columns: %d\n", ny);
-    fprintf(fp, "  Data type:         %d\n", dataType);
-    fprintf(fp, "  Channel type:      %d\n", uiChannelType_);
-    fprintf(fp, "  System ID:         %d\n", dwSystemID_);
-    fprintf(fp, "  Channel number:    %d\n", iChannelNum_);
-    fprintf(fp, "  Frames allocated:  %d\n", uiNumFrameBuffers_);
-    fprintf(fp, "  Current rows:      %d\n", uiRows_);
-    fprintf(fp, "  Current columns:   %d\n", uiColumns_);
-    fprintf(fp, "  # device frames:   %d\n", uiDevFrames_);
-    fprintf(fp, "  Device data type:  %d\n", uiDataType_);
-    fprintf(fp, "  Device sort flags: %d\n", uiSortFlags_);
-    fprintf(fp, "  IRQ enabled:       %d\n", bEnableIRQ_);
-    fprintf(fp, "  Acquisition type:  %d\n", dwAcqType_);
-    fprintf(fp, "  SystemID:          %d\n", dwSystemID_);
-    fprintf(fp, "  Sync mode:         %d\n", dwSyncMode_);
-    if (cHwHeaderInfo_.dwHeaderID >= 14) {
-      // This detector supports CHwHeaderInfoEx
-      fprintf(fp, "  CHwHeaderInfoEx:\n");
-      fprintf(fp, "    HeaderID:     %d\n", cHwHeaderInfoEx_.wHeaderID);
-      fprintf(fp, "    PROMID:       %d\n", cHwHeaderInfoEx_.wPROMID);
-      fprintf(fp, "    ResolutionX:  %d\n", cHwHeaderInfoEx_.wResolutionX);
-      fprintf(fp, "    ResolutionY:  %d\n", cHwHeaderInfoEx_.wResolutionY);
-      fprintf(fp, "    NrRows:       %d\n", cHwHeaderInfoEx_.wNrRows);
-      fprintf(fp, "    NrColumns:    %d\n", cHwHeaderInfoEx_.wNrColumns);
-      fprintf(fp, "    ZoomULRow:    %d\n", cHwHeaderInfoEx_.wZoomULRow);
-      fprintf(fp, "    ZoomULColumn: %d\n", cHwHeaderInfoEx_.wZoomULColumn);
-      fprintf(fp, "    ZoomBRColumn: %d\n", cHwHeaderInfoEx_.wZoomBRColumn);
-      fprintf(fp, "    FrmNrRows:    %d\n", cHwHeaderInfoEx_.wFrmNrRows);
-      fprintf(fp, "    FrmRowType:   %d\n", cHwHeaderInfoEx_.wFrmRowType);
-      fprintf(fp, "    RowTime:      %d\n", cHwHeaderInfoEx_.wRowTime);
-      fprintf(fp, "    Clock:        %d\n", cHwHeaderInfoEx_.wClock);
-      fprintf(fp, "    DataSorting:  %d\n", cHwHeaderInfoEx_.wDataSorting);
-      fprintf(fp, "    Timing:       %d\n", cHwHeaderInfoEx_.wTiming);
-      fprintf(fp, "    Gain:         %d\n", cHwHeaderInfoEx_.wGain);
-      fprintf(fp, "    LeakRows:     %d\n", cHwHeaderInfoEx_.wLeakRows);
-      fprintf(fp, "    Access:       %d\n", cHwHeaderInfoEx_.wAccess);
-      fprintf(fp, "    Bias:         %d\n", cHwHeaderInfoEx_.wBias);
-      fprintf(fp, "    UgComp:       %d\n", cHwHeaderInfoEx_.wUgComp);
-      fprintf(fp, "    Cameratype:   %d\n", cHwHeaderInfoEx_.wCameratype);
-      fprintf(fp, "    FrameCnt:     %d\n", cHwHeaderInfoEx_.wFrameCnt);
-      fprintf(fp, "    BinningMode:  %d\n", cHwHeaderInfoEx_.wBinningMode);
-      fprintf(fp, "    RealInttime_milliSec: %d\n", cHwHeaderInfoEx_.wRealInttime_milliSec);
-      fprintf(fp, "    RealInttime_microSec: %d\n", cHwHeaderInfoEx_.wRealInttime_microSec);
-      fprintf(fp, "    Status:       %d\n", cHwHeaderInfoEx_.wStatus);
-    } else {
-      fprintf(fp, "  CHwHeaderInfo:\n");
-      fprintf(fp, "    PROMID:       %d\n", cHwHeaderInfo_.dwPROMID);
-      fprintf(fp, "    HeaderID:     %d\n", cHwHeaderInfo_.dwHeaderID);
-      fprintf(fp, "    AddRow:       %d\n", cHwHeaderInfo_.bAddRow);
-      fprintf(fp, "    PwrSave:      %d\n", cHwHeaderInfo_.bPwrSave);
-      fprintf(fp, "    NrRows:       %d\n", cHwHeaderInfo_.dwNrRows);
-      fprintf(fp, "    NrColumns:    %d\n", cHwHeaderInfo_.dwNrColumns);
-      fprintf(fp, "    ZoomULRow:    %d\n", cHwHeaderInfo_.dwZoomULRow);
-      fprintf(fp, "    ZoomULColumn: %d\n", cHwHeaderInfo_.dwZoomULColumn);
-      fprintf(fp, "    ZoomBRRow:    %d\n", cHwHeaderInfo_.dwZoomBRRow);
-      fprintf(fp, "    ZoomBRColumn: %d\n", cHwHeaderInfo_.dwZoomBRColumn);
-      fprintf(fp, "    FrmNrRows:    %d\n", cHwHeaderInfo_.dwFrmNrRows);
-      fprintf(fp, "    FrmRowType:   %d\n", cHwHeaderInfo_.dwFrmRowType);
-      fprintf(fp, "    FrmFillRowIntervalls: %d\n", cHwHeaderInfo_.dwFrmFillRowIntervalls);
-      fprintf(fp, "    NrOfFillingRows:     %d\n", cHwHeaderInfo_.dwNrOfFillingRows);
-      fprintf(fp, "    DataType:     %d\n", cHwHeaderInfo_.dwDataType);
-      fprintf(fp, "    DataSorting:  %d\n", cHwHeaderInfo_.dwDataSorting);
-      fprintf(fp, "    Timing:       %d\n", cHwHeaderInfo_.dwTiming);
-      fprintf(fp, "    Gain:         %d\n", cHwHeaderInfo_.dwGain);
-      fprintf(fp, "    Offset:       %d\n", cHwHeaderInfo_.dwOffset);
-      fprintf(fp, "    SyncMode:     %d\n", cHwHeaderInfo_.bSyncMode);
-      fprintf(fp, "    Bias:         %d\n", cHwHeaderInfo_.dwBias);
-      fprintf(fp, "    LeakRows:     %d\n", cHwHeaderInfo_.dwLeakRows);
+  try {
+    fprintf(fp, "Dexela, port=%s, model=%d, serial number=%d\n", 
+      this->portName, modelName_, serialNumber_);
+    if (details > 0) {
+      getIntegerParam(NDDataType, &dataType);
+      fprintf(fp, "  Number of rows:    %d\n", sensorX_);
+      fprintf(fp, "  Number of columns: %d\n", sensorY_);
+      fprintf(fp, "  Data type:         %d\n", dataType);
+      fprintf(fp, "  Frames allocated:  %d\n", pDetector_->GetNumBuffers());
     }
+    if (details > 1) reportSensors(fp, details);
+
+    /* Invoke the base class method */
+    ADDriver::report(fp, details);
+  } catch (DexelaException &e) {
+    asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
+      "%s::%s %s\n",
+      driverName, functionName, e.what());
   }
-  if (details > 1) reportSensors(fp, details);
-  
-  /* Invoke the base class method */
-  ADDriver::report(fp, details);
 }
 
 //_____________________________________________________________________________________________
 /** Report information about all local and network Dexela detectors */
 void Dexela::reportSensors(FILE *fp, int details)
 {
-  ACQDESCPOS Pos = 0;
-  unsigned int uiPEResult;
-  unsigned int uiChannelType, uiRows, uiColumns, uiDataType, uiSortFlags;
-  int iChannelNum, iFrames;
-  long numGbIFSensors;
+  int numDevices;
+  DevInfo devInfo;
+  static const char *functionName = "reportSensors";
   int i;
-  GBIF_DEVICE_PARAM *pGbIFDeviceParam;
-  BOOL bEnableIRQ;
-  DWORD dwAcqType, dwSystemID, dwSyncMode, dwHwAccess;
-  HACQDESC  hAcqDesc;
   
-  fprintf(fp, "Total sensors in system: %d\n", uiNumSensors_);
-  // Iterate through all this sensors and display sensor data
-  do
-  {
-    if ((uiPEResult = Acquisition_GetNextSensor(&Pos, &hAcqDesc)) != HIS_ALL_OK)
-      fprintf(fp, "  Error: %d  GetNextSensor failed!\n", uiPEResult);
-
-    fprintf(fp, "  Sensor %d\n", Pos);
-
-    // Ask for communication device type and its number
-    if ((uiPEResult = Acquisition_GetCommChannel(hAcqDesc, &uiChannelType, &iChannelNum)) != HIS_ALL_OK)
-      fprintf(fp, "    Error: %d  GetCommChannel failed!\n", uiPEResult);
-
-    // Ask for data organization
-    if ((uiPEResult=Acquisition_GetConfiguration(hAcqDesc, (unsigned int *) &iFrames, &uiRows, &uiColumns, &uiDataType,
-        &uiSortFlags, &bEnableIRQ, &dwAcqType, &dwSystemID, &dwSyncMode, &dwHwAccess)) != HIS_ALL_OK)
-      fprintf(fp, "    Error: %d GetConfiguration failed!\n", uiPEResult);
-
-    fprintf(fp, "    Channel type:     %d\n", uiChannelType);
-    fprintf(fp, "    Channel number:   %d\n", iChannelNum);
-    fprintf(fp, "    Rows:             %d\n", uiRows);
-    fprintf(fp, "    Columns:          %d\n", uiColumns);
-    fprintf(fp, "    Frames:           %d\n", iFrames);
-    fprintf(fp, "    Data type:        %d\n", uiDataType);
-    fprintf(fp, "    Sort flags:       %d\n", uiSortFlags);
-    fprintf(fp, "    Enable IRQ:       %d\n", bEnableIRQ);
-    fprintf(fp, "    Acquisition type: %d\n", dwAcqType);
-    fprintf(fp, "    System ID:        %d\n", dwSystemID);
-    fprintf(fp, "    Sync mode:        %d\n", dwSyncMode);
-    fprintf(fp, "    Hardware access:  %d\n", dwHwAccess);
-
-  } while (Pos!=0);
-  
-  if ((uiPEResult = Acquisition_GbIF_GetDeviceCnt(&numGbIFSensors)) != HIS_ALL_OK)
-    fprintf(fp, "  Error: %d  GbIF_GetDeviceCnt failed!\n", uiPEResult);
-  if (numGbIFSensors <= 0) return;
-  
-  pGbIFDeviceParam = (GBIF_DEVICE_PARAM *)calloc(numGbIFSensors, sizeof(GBIF_DEVICE_PARAM));
-  if ((uiPEResult = Acquisition_GbIF_GetDeviceList(pGbIFDeviceParam, numGbIFSensors)) != HIS_ALL_OK)
-    fprintf(fp, "  Error: %d  GbIF_GetDeviceList failed!\n", uiPEResult);
-  
-  fprintf(fp, "Total GbIF sensors in system: %d\n", numGbIFSensors);
-  for (i=0; i<numGbIFSensors; i++) {
-    fprintf(fp, "  GbIF Sensor %d\n", i+1);
-    fprintf(fp, "    MAC address:     %s\n", pGbIFDeviceParam[i].ucMacAddress);
-    fprintf(fp, "    IP address:      %s\n", pGbIFDeviceParam[i].ucIP);
-    fprintf(fp, "    Subnet mask:     %s\n", pGbIFDeviceParam[i].ucSubnetMask);
-    fprintf(fp, "    Gateway:         %s\n", pGbIFDeviceParam[i].ucGateway);
-    fprintf(fp, "    Adapter IP:      %s\n", pGbIFDeviceParam[i].ucAdapterIP);
-    fprintf(fp, "    Adapter mask:    %s\n", pGbIFDeviceParam[i].ucAdapterMask);
-    fprintf(fp, "    Boot options:    %d\n", pGbIFDeviceParam[i].dwIPCurrentBootOptions);
-    fprintf(fp, "    Manufacturer:    %s\n", pGbIFDeviceParam[i].cManufacturerName);
-    fprintf(fp, "    Model:           %s\n", pGbIFDeviceParam[i].cModelName);
-    fprintf(fp, "    Firmware:        %s\n", pGbIFDeviceParam[i].cGBIFFirmwareVersion);
-    fprintf(fp, "    Device name:     %s\n", pGbIFDeviceParam[i].cDeviceName);  
-  }  
+  try {
+    numDevices = pBusScanner_->EnumerateDevices();
+    fprintf(fp, "Total sensors in system: %d\n", numDevices);
+    // Iterate through all devices and display information
+    for (i=0; i<numDevices; i++) {
+      fprintf(fp, "Device: %d\n", i);
+      devInfo = pBusScanner_->GetDevice(i);
+      DexelaDetector det = DexelaDetector(devInfo_);
+      fprintf(fp, "   Model number: %d\n", devInfo.model);
+      fprintf(fp, "  Serial number: %d\n", devInfo.serialNum);
+      fprintf(fp, "      Interface: %s\n", devInfo.iface ? "GigE" : "CameraLink");
+      fprintf(fp, "          Width: %d\n", det.GetSensorWidth());
+      fprintf(fp, "         Height: %d\n", det.GetSensorHeight());
+    }
+  } catch (DexelaException &e) {
+    asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
+      "%s::%s %s\n",
+      driverName, functionName, e.what());
+  }
 }
 
-//_____________________________________________________________________________________________
-/** callback function that is called by XISL every frame at end of data transfer */
+// Callback function that is called by from ::newFrameCallback for each frame
 void Dexela::newFrameCallback(int frameCounter, int bufferNumber)
 {
-  unsigned int  uiStatus;
-  DWORD         ActAcqFrame;
-  DWORD         ActBuffFrame;
-  unsigned int  currBuff;
-  epicsUInt16   *pInput;
+  void          *pData;
   NDArrayInfo   arrayInfo;
   int           arrayCounter;
   int           imageCounter;
+  int           numOffsetFrames;
+  int           numGainFrames;
   int           numImages;
   int           imageMode;
   int           offsetCounter;
@@ -605,97 +333,100 @@ void Dexela::newFrameCallback(int frameCounter, int bufferNumber)
   int           useOffset;
   int           useGain;
   int           usePixelCorrection;
+  int           frameType;
   size_t        dims[2];
-  int           acquiring;
-  DWORD         HISError;
-  DWORD         FGError;
   NDArray       *pImage;
-  NDDataType_t  dataType;
+  NDDataType_t  dataType = NDUInt16;
   epicsTimeStamp currentTime;
-  static const char *functionName = "endFrameCallback";
+  static const char *functionName = "newFrameCallback";
     
   asynPrint(pasynUserSelf, ASYN_TRACE_FLOW,
     "%s:%s: entry ...\n",
     driverName, functionName);
 
   lock();
-  uiStatus =  Acquisition_GetAcqData(hAcqDesc, (void **) &pDexela);
+
+  // This all needs to be in a try/catch block!
+
+  getIntegerParam(ADFrameType, &frameType);
   getIntegerParam(DEX_UseOffset, &useOffset);
   getIntegerParam(DEX_UseGain, &useGain);
   getIntegerParam(DEX_UsePixelCorrection, &usePixelCorrection);
 
-  switch (iAcqMode_) {
-    case DEX_ACQUIRE_OFFSET:
+  switch (frameType) {
+    case ADFrameBackground:
+      getIntegerParam(DEX_NumOffsetFrames, &numOffsetFrames);
       getIntegerParam(DEX_CurrentOffsetFrame, &offsetCounter);
+      pDetector_->ReadBuffer(bufferNumber, offsetImage_, offsetCounter);
+      pData = offsetImage_.GetDataPointerToPlane(offsetCounter);
       offsetCounter++;
       setIntegerParam(DEX_CurrentOffsetFrame, offsetCounter);
-      pInput = pOffsetBuffer_;
-      dataType = NDUInt16;
+      // If this is the last offset image then compute the median image and raise a flag to the 
+      // user that offset data is available
+      if (offsetCounter >= numOffsetFrames) {
+        offsetImage_.FindMedianofPlanes();
+        offsetImage_.SetImageType(Offset);
+        setIntegerParam(DEX_OffsetAvailable, AVAILABLE);
+        pData = offsetImage_.GetDataPointerToPlane();
+      }
       break;
 
-    case DEX_ACQUIRE_GAIN:
+    case ADFrameFlatField:
+      getIntegerParam(DEX_NumGainFrames, &numGainFrames);
       getIntegerParam(DEX_CurrentGainFrame, &gainCounter);
+      pDetector_->ReadBuffer(bufferNumber, gainImage_, gainCounter);
+      pData = gainImage_.GetDataPointerToPlane(gainCounter);
       gainCounter++;
       setIntegerParam(DEX_CurrentGainFrame, gainCounter);
-      pInput = (epicsUInt16 *)pGainBuffer_;
-      dataType = NDInt32;
+      // If this is the last offset image then compute the flood image and raise a flag to the 
+      // user that offset data is available
+      if (gainCounter >= numGainFrames) {
+        gainImage_.FindMedianofPlanes();
+        gainImage_.FixFlood();
+        gainImage_.SetImageType(Gain);
+        setIntegerParam(DEX_GainAvailable, AVAILABLE);
+        dataType = NDFloat32;
+        pData = gainImage_.GetDataPointerToPlane();
+      }
       break;
 
-    case DEX_ACQUIRE_ACQUISITION:
-      /** Find offset into secondary frame buffer */
-      uiStatus =  Acquisition_GetActFrame(hAcqDesc, &ActAcqFrame, &ActBuffFrame);
-      if (uiStatus != 0) {
-        Acquisition_GetErrorCode(hAcqDesc,  &HISError,  &FGError);
-        asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-          "%s:%s: Error: %d Acquisition_GetActFrame failed, HIS Error: %d, Frame Grabber Error: %d\n", 
-          driverName, functionName, uiStatus, HISError, FGError);
-      }
+    case ADFrameNormal:
       getIntegerParam(ADImageMode, &imageMode);
       getIntegerParam(ADNumImages, &numImages);
       getIntegerParam(ADNumImagesCounter, &imageCounter);
+      if (imageMode == DEXImageAverage) {
+        pDetector_->ReadBuffer(bufferNumber, dataImage_, imageCounter);
+        if (imageCounter >= numImages-1) {
+          dataImage_.FindMedianofPlanes();
+        } else {
+          goto done;
+        }
+      } else {
+        pDetector_->ReadBuffer(bufferNumber, dataImage_, 0);
+      }
       imageCounter++;
       setIntegerParam(ADNumImagesCounter, imageCounter);
-      asynPrint(pasynUserSelf, ASYN_TRACE_FLOW,
-        "%s:%s: ActAcqFrame = %d, ActBuffFrame = %d\n", 
-        driverName, functionName, ActAcqFrame, ActBuffFrame);
-      setIntegerParam(DEX_ImageNumber, ActBuffFrame);
-      setIntegerParam(DEX_FrameBufferIndex, ActAcqFrame);
-      asynPrint(pasynUserSelf, ASYN_TRACE_FLOW,
-        "%s:%s: uiNumBuffersInUse_ = %d\n", 
-        driverName, functionName, uiNumBuffersInUse_);
-      if (imageMode == PEImageAverage) {
-        // We don't want to do anything if we are in average mode except if
-        // we have been called from the endAcqCallback, in which case ADAcquire will be 0
-        getIntegerParam(ADAcquire, &acquiring);
-        if (acquiring) goto done;
-        // We force it to use the first buffer, even though Acquisition_GetActFrame 
-        // says ActBuffFrame is something else
-        ActBuffFrame = 1;
-      }
-      currBuff = (ActBuffFrame - 1) % uiNumBuffersInUse_;
-      pInput = &pAcqBuffer_[uiColumns_ * uiRows_ * currBuff];
-      dataType = NDUInt16;
-      asynPrint(pasynUserSelf, ASYN_TRACE_FLOW,
-        "%s:%s: currBuff = %d, pInput = %p\n", 
-        driverName, functionName, currBuff, pInput);
+      dataImage_.SetImageType(Data);
 
       /** Correct for detector offset and gain as necessary */
-      if ((useOffset) && (pOffsetBuffer_ != NULL))
+      if ((useOffset) && offsetImage_.IsEmpty())
       {
-        if ((useGain) && (pGainBuffer_ != NULL))
-          uiStatus = Acquisition_DoOffsetGainCorrection(pInput, pInput, pOffsetBuffer_, pGainBuffer_, uiRows_ * uiColumns_);
-        else
-          uiStatus = Acquisition_DoOffsetCorrection(pInput, pInput, pOffsetBuffer_, uiRows_ * uiColumns_);
+        dataImage_.LoadDarkImage(offsetImage_);
+        if ((useGain) && !gainImage_.IsEmpty()) {
+          dataImage_.LoadFloodImage(gainImage_);
+          dataImage_.FloodCorrection();
+        } else {
+          dataImage_.SubtractDark();
+        }
       }
 
       /** Correct for dead pixels as necessary */
-      if ((usePixelCorrection) && (pPixelCorrectionList_ != NULL))
-        uiStatus = Acquisition_DoPixelCorrection (pInput, pPixelCorrectionList_);
 
-      if ((imageMode == PEImageMultiple) && (imageCounter >= numImages))
-        acquireStop();
+      pData = dataImage_.GetDataPointerToPlane();
       break;
   }
+
+  // Should only do the following if ArrayCallbacks is true!
 
   /* Update the image */
   /* We save the most recent image buffer so it can be used in the read() function.
@@ -703,8 +434,8 @@ void Dexela::newFrameCallback(int frameCounter, int bufferNumber)
   if (this->pArrays[0])
       this->pArrays[0]->release();
   /* Allocate the array */
-  dims[0] = uiColumns_;
-  dims[1] = uiRows_;
+  dims[0] = pDetector_->GetBufferXdim();
+  dims[1] = pDetector_->GetBufferYdim();
   this->pArrays[0] = pNDArrayPool->alloc(2, dims, dataType, 0, NULL);
   if (this->pArrays[0] == NULL) {
     asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
@@ -716,12 +447,11 @@ void Dexela::newFrameCallback(int frameCounter, int bufferNumber)
   pImage = this->pArrays[0];
   pImage->getInfo(&arrayInfo);
   // Copy the data from the input to the output
-  memcpy(pImage->pData, pInput, arrayInfo.totalBytes);
+  memcpy(pImage->pData, pData, arrayInfo.totalBytes);
 
   setIntegerParam(NDArraySize,  (int)arrayInfo.totalBytes);
   setIntegerParam(NDArraySizeX, (int)pImage->dims[0].size);
   setIntegerParam(NDArraySizeY, (int)pImage->dims[1].size);
-
 
   /* Put the frame number and time stamp into the buffer */
   getIntegerParam(NDArrayCounter, &arrayCounter);
@@ -746,6 +476,9 @@ void Dexela::newFrameCallback(int frameCounter, int bufferNumber)
   lock();
 
   done:
+
+  // Need to test to see if acquisition is complete.  If so, close shutter.
+
   // Do callbacks on parameters
   callParamCallbacks();
 
@@ -755,84 +488,6 @@ void Dexela::newFrameCallback(int frameCounter, int bufferNumber)
     driverName, functionName);
 }
 
-//_____________________________________________________________________________________________
-
-/** callback function that is called by XISL at end of acquisition */
-static void CALLBACK endAcqCallbackC(HACQDESC hAcqDesc)
-{
-  Dexela   *pDexela;
-  unsigned int  uiStatus;
-  DWORD         HISError;
-  DWORD         FGError;
-  static const char *functionName = "endAcqCallbackC";
-
-#ifdef __X64
-  uiStatus =  Acquisition_GetAcqData(hAcqDesc, (void **) &pDexela);
-#else
-  uiStatus =  Acquisition_GetAcqData(hAcqDesc, (DWORD *) &pDexela);
-#endif
-  if (uiStatus != 0) {
-    printf("%s:%s: Error: %d Acquisition_GetAcqData failed\n", 
-      driverName, functionName, uiStatus);
-    Acquisition_GetErrorCode(hAcqDesc, &HISError, &FGError);
-    printf ("%s:%s: HIS Error: %d, Frame Grabber Error: %d\n", 
-      driverName, functionName, HISError, FGError);
-    return;
-  }
-  pDexela->endAcqCallback(hAcqDesc);
-}
-
-//_____________________________________________________________________________________________
-
-/** callback function that is called by XISL at end of acquisition */
-void Dexela::endAcqCallback(HACQDESC hAcqDesc)
-{
-  int imageMode;
-  static const char *functionName = "endAcqCallback";
-
-  asynPrint(pasynUserSelf, ASYN_TRACE_FLOW,
-    "%s:%s: entry...\n",
-    driverName, functionName);
-
-  lock();
-  switch(iAcqMode_) {
-    case DEX_ACQUIRE_OFFSET: 
-    setIntegerParam(DEX_AcquireOffset, 0);
-      /* raise a flag to the user if offset data is available */
-      if (pOffsetBuffer_ != NULL) {
-        setIntegerParam(DEX_OffsetAvailable, AVAILABLE);
-      }
-      break;
-
-  case DEX_ACQUIRE_GAIN: 
-    setIntegerParam(DEX_AcquireGain, 0);
-    /* raise a flag to the user if gain data is available */
-    if (pGainBuffer_ != NULL) {
-      setIntegerParam(DEX_GainAvailable, AVAILABLE);
-    }
-    setShutter(ADShutterClosed);
-    break;
-    
-  case DEX_ACQUIRE_ACQUISITION:
-    setIntegerParam(ADStatus, ADStatusIdle);
-    setIntegerParam(ADAcquire, 0);
-    getIntegerParam(ADImageMode, &imageMode);
-    if (imageMode == PEImageAverage) {
-      endFrameCallback(hAcqDesc);
-    }
-    setShutter(ADShutterClosed);
-    break;
-  
-  }
-  
-  callParamCallbacks();
-  asynPrint(pasynUserSelf, ASYN_TRACE_FLOW,
-    "%s:%s: exit\n",
-    driverName, functionName);
-  unlock();
-}
-
-//_____________________________________________________________________________________________
 
 /** Called when asyn clients call pasynInt32->write().
   * This function performs actions for some parameters, including ADAcquire, ADBinX, etc.
@@ -844,8 +499,6 @@ asynStatus Dexela::writeInt32(asynUser *pasynUser, epicsInt32 value)
   int function = pasynUser->reason;
   int adstatus;
   int status = asynSuccess;
-  unsigned int uiPEResult;
-  int retstat;
   static const char *functionName = "writeInt32";
 
   /* Set the parameter and readback in the parameter library.  This may be overwritten when we read back the
@@ -854,7 +507,6 @@ asynStatus Dexela::writeInt32(asynUser *pasynUser, epicsInt32 value)
 
   getIntegerParam(ADStatus, &adstatus);
 
-  /* For a real detector this is where the parameter is sent to the hardware */
   if (function == ADAcquire) {
 
     // Start acquisition
@@ -869,16 +521,10 @@ asynStatus Dexela::writeInt32(asynUser *pasynUser, epicsInt32 value)
       acquireStop();
     }
   }
-  else if ((function == ADBinX) ||
-           (function == ADBinY)) {
+  else if (function == DEX_BinningMode) {
     if ( adstatus == ADStatusIdle ) {
-      setBinning();
+      pDetector_->SetBinningMode((bins)value);
     }    
-  }
-  else if (function == DEX_Initialize) {
-    if ( adstatus == ADStatusIdle ) {
-      initializeDetector();
-    }
   }
   else if (function == DEX_AcquireOffset) {
     if ( adstatus == ADStatusIdle ) {
@@ -890,24 +536,11 @@ asynStatus Dexela::writeInt32(asynUser *pasynUser, epicsInt32 value)
       acquireGainImage();
     }
   }
-  else if (function == DEX_Trigger) {
-    if ((uiPEResult = Acquisition_SetFrameSync(hAcqDesc_))!=HIS_ALL_OK)
-      asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-        "%s:%s: Error: %d  Acquisition_SetFrameSync failed!\n", 
-        driverName, functionName, uiPEResult);
+  else if (function == DEX_SoftwareTrigger) {
+    pDetector_->SoftwareTrigger();
   }
-
   else if (function == ADTriggerMode) {
-    getIntegerParam(ADStatus, &adstatus);
-    retstat |= getIntegerParam(ADTriggerMode, &iTrigModeReq_);
-    asynPrint(pasynUser, ASYN_TRACE_FLOW,
-      "%s:%s: Setting Requested Trigger Mode: %d\n", 
-      driverName, functionName, iTrigModeReq_);
-    retstat |= setIntegerParam(ADTriggerMode, iTrigModeAct_);
-    //if not running go ahead and set the trigger mode
-    if ( adstatus == ADStatusIdle ) {
-      setTriggerMode();
-    }
+    pDetector_->SetTriggerSource((ExposureTriggerSource)value);
   }
   else if (function == DEX_LoadGainFile) {
     loadGainFile();
@@ -918,7 +551,6 @@ asynStatus Dexela::writeInt32(asynUser *pasynUser, epicsInt32 value)
   else if (function == DEX_LoadPixelCorrectionFile) {
     loadPixelCorrectionFile();
   }
-
 
   else {
     /* If this parameter belongs to a base class call its method */
@@ -954,30 +586,13 @@ asynStatus Dexela::writeFloat64(asynUser *pasynUser, epicsFloat64 value)
 {
   int function = pasynUser->reason;
   asynStatus status = asynSuccess;
-  int retstat;
-  int adstatus;
   static const char *functionName = "writeFloat64";
 
-  /* Set the parameter and readback in the parameter library.  This may be overwritten when we read back the
-   * status at the end, but that's OK */
+  /* Set the parameter and readback in the parameter library.  This may be overwritten but that's OK */
   status = setDoubleParam(function, value);
 
-  /* Changing any of the following parameters requires recomputing the base image */
   if (function == ADAcquireTime) {
-    getIntegerParam(ADStatus, &adstatus);
-
-    retstat |= getDoubleParam(ADAcquireTime, &dAcqTimeReq_);
-    asynPrint(pasynUser, ASYN_TRACE_FLOW,
-      "%s:%s: Setting Requested Acquisition Time: %f\n", 
-      driverName, functionName, dAcqTimeReq_);
-    retstat |= setDoubleParam(ADAcquireTime, dAcqTimeAct_);
-    // if the detector is idle then go ahead and set the value
-    if ( adstatus == ADStatusIdle ) {
-      setExposureTime();
-    }
-
-  }
-  else if (function == ADGain) {
+    pDetector_->SetExposureTime((float)(value * 1000.));
   }
   else {
     /* If this parameter belongs to a base class call its method */
@@ -1000,126 +615,93 @@ asynStatus Dexela::writeFloat64(asynUser *pasynUser, epicsFloat64 value)
   return status;
 }
 
+
+/** Called when asyn clients call pasynFloat64->write().
+  * This function performs actions for some parameters.
+  * For all parameters it sets the value in the parameter library and calls any registered callbacks.
+  * \param[in] pasynUser pasynUser structure that encodes the reason and address.
+  * \param[in] value Value to write. */
+asynStatus Dexela::readEnum(asynUser *pasynUser, char *strings[], int values[], int severities[], 
+                            size_t nElements, size_t *nIn)
+{
+  int function = pasynUser->reason;
+  int i, j=0;
+  int exists;
+
+  if (function == DEX_BinningMode) {
+    for (i=0; ((i<MAX_BINNING) && (i<(int)nElements)); i++) {
+      exists = pDetector_->QueryBinningMode((bins)binEnums[i].value);
+      if (exists == 1) {
+        if (strings[j]) free(strings[j]);
+        strings[j] = epicsStrDup(binEnums[i].string);
+        values[j] = binEnums[i].value;
+        severities[j] = 0;
+        j++;
+      }
+    }
+  }
+  if (function == DEX_FullWellMode) {
+    for (i=0; ((i<MAX_FULL_WELL) && (i<(int)nElements)); i++) {
+      exists = pDetector_->QueryFullWellMode((FullWellModes)fullWellEnums[i].value);
+      if (exists == 1) {
+        if (strings[j]) free(strings[j]);
+        strings[j] = epicsStrDup(fullWellEnums[i].string);
+        values[j] = fullWellEnums[i].value;
+        severities[j] = 0;
+        j++;
+      }
+    }
+  }
+  else if (function == ADTriggerMode) {
+    for (i=0; ((i<MAX_TRIGGERS) && (i<(int)nElements)); i++) {
+      exists = pDetector_->QueryTriggerSource((ExposureTriggerSource)triggerEnums[i].value);
+      if (exists == 1) {
+        if (strings[j]) free(strings[j]);
+        strings[j] = epicsStrDup(triggerEnums[i].string);
+        values[j] = triggerEnums[i].value;
+        severities[j] = 0;
+        j++;
+      }
+    }
+  }
+  else {
+    *nIn = 0;
+    return asynError;
+  }
+  *nIn = j;
+  return asynSuccess;   
+}
+
+
 //_____________________________________________________________________________________________
 
 /** Starts acquisition */
 void Dexela::acquireStart(void)
 {
-  int     iMode;
-  int     iFrames;
+  int     imageMode;
+  int     numImages;
   int     status = asynSuccess;
-  unsigned int uiPEResult;
-  DWORD   HISError;
-  DWORD   FGError;
-  int     skipFrames;
-  int     numFramesToSkip = 0;
   static const char *functionName = "acquireStart";
 
   //get some information
-  getIntegerParam(ADImageMode, &iMode);
-  getIntegerParam(DEX_SkipFrames, &skipFrames);
-
-  if (skipFrames !=0) {
-    status |= getIntegerParam(DEX_NumFramesToSkip, &numFramesToSkip);
-    asynPrint(pasynUserSelf, ASYN_TRACE_FLOW,
-      "%s:%s: Skipping %d frames\n", 
-      driverName, functionName, numFramesToSkip );
-    }
-
-  switch(iMode)
-  {
-    case PEImageSingle:  
-      iFrames = 1; 
-      break;
-
-    case PEImageMultiple:
-    case PEImageContinuous:
-      iFrames = uiNumFrameBuffers_;
-      break;
-    case PEImageAverage:
-      status |= getIntegerParam(ADNumImages, &iFrames);
-      break;
-
-  }
-
-  asynPrint(pasynUserSelf, ASYN_TRACE_FLOW,
-    "%s:%s: Frame mode: %d, Frames: %d, Rows: %d, Columns: %d\n", 
-    driverName, functionName, iMode, iFrames, uiRows_, uiColumns_);
-
-  iAcqMode_ = DEX_ACQUIRE_ACQUISITION;
-  uiNumBuffersInUse_ = iFrames;
-
-  if ((uiPEResult=Acquisition_DefineDestBuffers(hAcqDesc_, pAcqBuffer_,  iFrames, uiRows_, uiColumns_)) != HIS_ALL_OK)
-    asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-      "%s:%s: Error : %d  Acquisition_DefineDestBuffers failed!\n", 
-      driverName, functionName, uiPEResult);
+  getIntegerParam(ADImageMode, &imageMode);
+  getIntegerParam(ADNumImages, &numImages);
 
   setIntegerParam(ADNumImagesCounter, 0);
   setIntegerParam(ADStatus, ADStatusAcquire);
 
-  Acquisition_ResetFrameCnt(hAcqDesc_);
-  Acquisition_SetReady(hAcqDesc_, 1);
   setShutter(ADShutterOpen);
-  switch (iMode) {
-    case PEImageSingle:
-      uiPEResult = Acquisition_Acquire_Image(hAcqDesc_, iFrames, numFramesToSkip,
-                                             HIS_SEQ_ONE_BUFFER, NULL, NULL, NULL);
+  switch (imageMode) {
+    case DEXImageSingle:
       break;
-    case PEImageMultiple:
-    case PEImageContinuous:
-      uiPEResult = Acquisition_Acquire_Image(hAcqDesc_, iFrames, numFramesToSkip,
-                                             HIS_SEQ_CONTINUOUS, NULL, NULL, NULL);
+    case DEXImageMultiple:
+    case DEXImageContinuous:
       break;
-    case PEImageAverage:
-      uiPEResult = Acquisition_Acquire_Image(hAcqDesc_, iFrames, numFramesToSkip,
-                                             HIS_SEQ_AVERAGE, NULL, NULL, NULL);
+    case DEXImageAverage:
       break;
   }
-
-  if (uiPEResult != HIS_ALL_OK) {
-    Acquisition_GetErrorCode(hAcqDesc_, &HISError, &FGError);
-    asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-      "%s:%s: Error: %d Acquisition_Acquire_Image failed, HIS Error: %d, Frame Grabber Error: %d\n", 
-      driverName, functionName, uiPEResult, HISError, FGError);
-  }
-  asynPrint(pasynUserSelf, ASYN_TRACE_FLOW,
-    "%s:%s: Acquisition started...\n",
-    driverName, functionName);
-
 }
 
-
-//_____________________________________________________________________________________________
-/** Stops acquisition
-  * acquireStop cannot directly call Acquisition_Abort because acquireStop is called from the
-  * endFrameCallback function which is running in an XISL thread.  When it calls Acquisition_Abort
-  * that appears to result in a deadlock, presumably because there is a second XISL thread that
-  * does the abort, and it blocks waiting for the first XISL thread (deadlock). So instead
-  * we run a thread whose only job is to call Acquisition_Abort on receipt of an EPICS event. */
-
-void Dexela::acquireStop(void)
-{
-  static const char *functionName = "acquireStop";
-
-  epicsEventSignal(acquireStopEvent_);
-}
-
-static void acquireStopTaskC(void *drvPvt)
-{
-    Dexela *pPvt = (Dexela *)drvPvt;
-
-    pPvt->acquireStopTask();
-}
-
-void Dexela::acquireStopTask(void)
-{
-  while (1) {
-    epicsEventWait(acquireStopEvent_);
-    Acquisition_Abort(hAcqDesc_);
-    setShutter(ADShutterClosed);
-  }
-}
-    
 
 //_____________________________________________________________________________________________
 
@@ -1464,90 +1046,28 @@ asynStatus Dexela::loadPixelCorrectionFile()
   return asynSuccess;
 }
 
-//-------------------------------------------------------------
-/** Sets the trigger mode */
-asynStatus Dexela::setTriggerMode() {
-  int error;
-  int mode;
-
-  mode = iTrigModeReq_;
-
-  switch (mode) {
-   case DEX_FREE_RUNNING: {
-      error = Acquisition_SetFrameSyncMode(hAcqDesc_, HIS_SYNCMODE_FREE_RUNNING);
-      break;
-   }
-   case DEX_EXTERNAL_TRIGGER: {
-      error = Acquisition_SetFrameSyncMode(hAcqDesc_, HIS_SYNCMODE_EXTERNAL_TRIGGER);
-      break;
-   }
-   case DEX_INTERNAL_TRIGGER: {
-      error = Acquisition_SetFrameSyncMode(hAcqDesc_, HIS_SYNCMODE_INTERNAL_TIMER);
-      break;
-   }
-   case DEX_SOFT_TRIGGER: {
-      error = Acquisition_SetFrameSyncMode(hAcqDesc_, HIS_SYNCMODE_SOFT_TRIGGER);
-      break;
-   }
-  }
-  iTrigModeAct_ = mode;
-  setIntegerParam(ADTriggerMode, iTrigModeAct_);
-  callParamCallbacks();
-
-  return asynSuccess;
-
-}
-
-//-------------------------------------------------------------
-/** Sets the exposure time */
-asynStatus Dexela::setExposureTime() {
-  DWORD dwDwellTime;
-  int status = asynSuccess;
-  int error;
-  const char *functionName = "setExposureTime";
-
-  asynPrint(pasynUserSelf, ASYN_TRACE_FLOW, 
-    "%s:%s: Setting AcquireTime %f\n",
-     driverName, functionName, dAcqTimeReq_);
-  dwDwellTime = (DWORD) (dAcqTimeReq_ * 1000000);
-  asynPrint(pasynUserSelf, ASYN_TRACE_FLOW,
-    "%s:%s: internal timer requested: %d\n", 
-    driverName, functionName, dwDwellTime);
-  error = Acquisition_SetTimerSync(hAcqDesc_, &dwDwellTime);
-  dAcqTimeAct_ = dwDwellTime/1000000.;
-  asynPrint(pasynUserSelf, ASYN_TRACE_FLOW,
-    "%s:%s: internal timer: %f\n", 
-    driverName, functionName, dAcqTimeAct_);
-  status |= setDoubleParam(ADAcquireTime, dAcqTimeAct_);
-  callParamCallbacks();
-
-  return asynSuccess;
-}
 
 /* Code for iocsh registration */
 
 /* DexelaConfig */
-static const iocshArg DexelaConfigArg0 = {"Port name", iocshArgString};
-static const iocshArg DexelaConfigArg1 = {"detIndex", iocshArgInt};
-static const iocshArg DexelaConfigArg2 = {"numFrameBuffers", iocshArgInt};
-static const iocshArg DexelaConfigArg3 = {"maxBuffers", iocshArgInt};
-static const iocshArg DexelaConfigArg4 = {"maxMemory", iocshArgInt};
-static const iocshArg DexelaConfigArg5 = {"priority", iocshArgInt};
-static const iocshArg DexelaConfigArg6 = {"stackSize", iocshArgInt};
+static const iocshArg DexelaConfigArg0 = {"Port name",  iocshArgString};
+static const iocshArg DexelaConfigArg1 = {"detIndex",   iocshArgInt};
+static const iocshArg DexelaConfigArg2 = {"maxBuffers", iocshArgInt};
+static const iocshArg DexelaConfigArg3 = {"maxMemory",  iocshArgInt};
+static const iocshArg DexelaConfigArg4 = {"priority",   iocshArgInt};
+static const iocshArg DexelaConfigArg5 = {"stackSize",  iocshArgInt};
 static const iocshArg * const DexelaConfigArgs[] =  {&DexelaConfigArg0,
-                                                          &DexelaConfigArg1,
-                                                          &DexelaConfigArg2,
-                                                          &DexelaConfigArg3,
-                                                          &DexelaConfigArg4,
-                                                          &DexelaConfigArg5,
-                                                          &DexelaConfigArg6};
-static const iocshFuncDef configDexela = {"DexelaConfig", 7, DexelaConfigArgs};
+                                                     &DexelaConfigArg1,
+                                                     &DexelaConfigArg2,
+                                                     &DexelaConfigArg3,
+                                                     &DexelaConfigArg4,
+                                                     &DexelaConfigArg5};
+static const iocshFuncDef configDexela = {"DexelaConfig", 6, DexelaConfigArgs};
 static void configDexelaCallFunc(const iocshArgBuf *args)
 {
-  DexelaConfig(args[0].sval, args[1].ival, args[2].ival, args[3].ival, 
-                    args[4].ival, args[5].ival, args[6].ival);
+  DexelaConfig(args[0].sval, args[1].ival, args[2].ival,
+               args[3].ival, args[4].ival, args[5].ival);
 }
-
 
 static void DexelaRegister(void)
 {
