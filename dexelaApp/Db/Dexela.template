@@ -13,6 +13,56 @@ record(longin, "$(P)$(R)DEXSerialNumber")
    field(SCAN, "I/O Intr")
 }
 
+######################
+# Binning records
+######################
+
+record(mbbo, "$(P)$(R)DEXBinningMode")
+{
+   field(PINI, "YES")
+   field(DTYP, "asynInt32")
+   field(OUT,  "@asyn($(PORT),$(ADDR),$(TIMEOUT))DEX_BINNING_MODE")
+}
+
+record(mbbi, "$(P)$(R)DEXBinningMode_RBV")
+{
+   field(DTYP, "asynInt32")
+   field(INP,  "@asyn($(PORT),$(ADDR),$(TIMEOUT))DEX_BINNING_MODE")
+   field(SCAN, "I/O Intr")
+}
+
+
+######################
+# Full-well records
+######################
+
+record(mbbo, "$(P)$(R)DEXFullWellMode")
+{
+   field(PINI, "YES")
+   field(DTYP, "asynInt32")
+   field(OUT,  "@asyn($(PORT),$(ADDR),$(TIMEOUT))DEX_FULL_WELL_MODE")
+}
+
+record(mbbi, "$(P)$(R)DEXFullWellMode_RBV")
+{
+   field(DTYP, "asynInt32")
+   field(INP,  "@asyn($(PORT),$(ADDR),$(TIMEOUT))DEX_FULL_WELL_MODE")
+   field(SCAN, "I/O Intr")
+}
+
+
+######################
+# Software trigger records
+######################
+
+record(bo, "$(P)$(R)DEXSoftwareTrigger")
+{
+   field(DTYP, "asynInt32")
+   field(OUT,  "@asyn($(PORT),$(ADDR),$(TIMEOUT))DEX_SOFTWARE_TRIGGER")
+   field(ZNAM, "Done")
+   field(ONAM, "Trigger")
+}
+
 
 ######################
 # Corrections records
@@ -28,7 +78,7 @@ record(waveform, "$(P)$(R)DEXCorrectionsDir")
 
 
 ######################
-# Offset records
+# Offset correction records
 ######################
 record(busy, "$(P)$(R)DEXAcquireOffset")
 {
@@ -79,7 +129,7 @@ record(bo, "$(P)$(R)DEXUseOffset")
 }
 
 ######################
-# Gain records
+# Gain correction records
 ######################
 record(busy, "$(P)$(R)DEXAcquireGain")
 {
@@ -154,7 +204,7 @@ record(bo, "$(P)$(R)DEXSaveGainFile")
 
 
 ######################
-# Pixel correction records
+# Defect map records
 ######################
 record(bo, "$(P)$(R)DEXUseDefectMap")
 {
