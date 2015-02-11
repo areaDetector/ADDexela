@@ -65,23 +65,8 @@ static enumStruct_t triggerEnums[MAX_TRIGGERS]= {
 #define MAX_FULL_WELL 2
 static enumStruct_t fullWellEnums[MAX_FULL_WELL]= {
   {Low,  "Low noise"},
-  {High, "High dynamic range"}
+  {High, "High range"}
 };
-
-// We add an additional mode to ADImageMode = DEXImageAverage
-typedef enum
-{
-  DEXImageSingle     = ADImageSingle,
-  DEXImageMultiple   = ADImageMultiple,
-  DEXImageContinuous = ADImageContinuous,
-  DEXImageAverage
-} DEXImageMode_t;
-
-typedef enum
-{
-  NOT_AVAILABLE,
-  AVAILABLE
-} Avalability_t;
 
 // I don't yet know how to pass a pointer to "this" to their frame callback function.
 // For now we set this to a static variable, which limits one to a single instance of this class per process
@@ -136,7 +121,7 @@ Dexela::Dexela(const char *portName,  int detIndex,
                          int maxBuffers, size_t maxMemory, int priority, int stackSize)
 
     : ADDriver(portName, 1, (int)NUM_DEXELA_PARAMS, maxBuffers, maxMemory, 
-               asynEnumMask, 0, ASYN_CANBLOCK, 1, priority, stackSize)
+               asynEnumMask, asynEnumMask, ASYN_CANBLOCK, 1, priority, stackSize)
 {
   int status = asynSuccess;
   static const char *functionName = "Dexela";
@@ -173,10 +158,10 @@ Dexela::Dexela(const char *portName,  int detIndex,
   setIntegerParam(NDArraySize, 0);
   setIntegerParam(NDDataType, NDUInt16);
   setIntegerParam(DEX_AcquireOffset, 0);
-  setIntegerParam(DEX_OffsetAvailable, NOT_AVAILABLE);
+  setIntegerParam(DEX_OffsetAvailable, 0);
   setIntegerParam(DEX_AcquireGain, 0);
-  setIntegerParam(DEX_GainAvailable, NOT_AVAILABLE);
-  setIntegerParam(DEX_DefectMapAvailable, NOT_AVAILABLE);
+  setIntegerParam(DEX_GainAvailable, 0);
+  setIntegerParam(DEX_DefectMapAvailable, 0);
   setStringParam (DEX_CorrectionsDirectory, "");
   setStringParam (DEX_GainFile, "");
   setStringParam (DEX_DefectMapFile, "");
@@ -184,7 +169,7 @@ Dexela::Dexela(const char *portName,  int detIndex,
   try {
     pBusScanner_ = new BusScanner();
     numDevices = pBusScanner_->EnumerateDevices();
-    if (numDevices < 0) {
+    if (numDevices <= 0) {
       asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
         "%s::%s Error: no Dexela devices found\n",
         driverName, functionName);
@@ -193,13 +178,15 @@ Dexela::Dexela(const char *portName,  int detIndex,
 
     if (detIndex > numDevices-1) {
       asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-        "%s::%s Error: detector index %s not available, only %d devices found\n",
+        "%s::%s Error: detector index %d not available, only %d devices found\n",
         driverName, functionName, detIndex, numDevices);
       return;
     }
     
     devInfo_ = pBusScanner_->GetDevice(detIndex);
     pDetector_ = new DexelaDetector(devInfo_);
+    // Connect to board
+    pDetector_->OpenBoard();
     sensorX_ = pDetector_->GetSensorWidth();
     setIntegerParam(ADMaxSizeX, sensorX_);
     sensorY_ = pDetector_->GetSensorHeight();
@@ -209,9 +196,6 @@ Dexela::Dexela(const char *portName,  int detIndex,
     setStringParam(ADModel, modelName_);
     serialNumber_ = pDetector_->GetSerialNumber();
     setIntegerParam(DEX_SerialNumber, serialNumber_);
-
-    // Connect to board
-    pDetector_->OpenBoard();
 
     // Set callback
     pDetector_->SetCallback(::newFrameCallback);
@@ -223,15 +207,19 @@ Dexela::Dexela(const char *portName,  int detIndex,
    pDetector_->ToggleGenerator(false);
 
   } catch (DexelaException &e) {
-    asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-      "%s::%s %s\n",
-      driverName, functionName, e.what());
+    reportError(functionName, e);
     return;
   }
  
   // Set exit handler to clean up
   epicsAtExit(exitCallbackC, this);
+}
 
+void Dexela::reportError(const char *functionName, DexelaException &e)
+{
+    asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
+      "%s::%s exception description=%s\n, function=%s, transport message=%s\n",
+      driverName, functionName, e.what(), e.GetFunctionName(), e.GetTransportMessage());
 }
 
 //_____________________________________________________________________________________________
@@ -267,7 +255,7 @@ void Dexela::report(FILE *fp, int details)
   static const char *functionName = "report";
 
   try {
-    fprintf(fp, "Dexela, port=%s, model=%d, serial number=%d\n", 
+    fprintf(fp, "Dexela, port=%s, model=%s, serial number=%d\n", 
       this->portName, modelName_, serialNumber_);
     if (details > 0) {
       getIntegerParam(NDDataType, &dataType);
@@ -281,10 +269,8 @@ void Dexela::report(FILE *fp, int details)
     /* Invoke the base class method */
     ADDriver::report(fp, details);
   } catch (DexelaException &e) {
-    asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-      "%s::%s %s\n",
-      driverName, functionName, e.what());
-  }
+    reportError(functionName, e);
+ }
 }
 
 //_____________________________________________________________________________________________
@@ -303,17 +289,12 @@ void Dexela::reportSensors(FILE *fp, int details)
     for (i=0; i<numDevices; i++) {
       fprintf(fp, "Device: %d\n", i);
       devInfo = pBusScanner_->GetDevice(i);
-      DexelaDetector det = DexelaDetector(devInfo_);
       fprintf(fp, "   Model number: %d\n", devInfo.model);
       fprintf(fp, "  Serial number: %d\n", devInfo.serialNum);
       fprintf(fp, "      Interface: %s\n", devInfo.iface ? "GigE" : "CameraLink");
-      fprintf(fp, "          Width: %d\n", det.GetSensorWidth());
-      fprintf(fp, "         Height: %d\n", det.GetSensorHeight());
     }
   } catch (DexelaException &e) {
-    asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-      "%s::%s %s\n",
-      driverName, functionName, e.what());
+    reportError(functionName, e);
   }
 }
 
@@ -324,20 +305,25 @@ void Dexela::newFrameCallback(int frameCounter, int bufferNumber)
   NDArrayInfo   arrayInfo;
   int           arrayCounter;
   int           imageCounter;
-  int           numOffsetFrames;
-  int           numGainFrames;
+  int           arrayCallbacks;
   int           numImages;
   int           imageMode;
+  int           numOffsetFrames;
   int           offsetCounter;
-  int           gainCounter;
+  int           offsetAvailable;
   int           useOffset;
+  int           numGainFrames;
+  int           gainCounter;
+  int           gainAvailable;
   int           useGain;
   int           useDefectMap;
   int           frameType;
+  int           acquiring;
   size_t        dims[2];
   NDArray       *pImage;
   NDDataType_t  dataType = NDUInt16;
   epicsTimeStamp currentTime;
+  DexImage      dataImage;
   static const char *functionName = "newFrameCallback";
     
   asynPrint(pasynUserSelf, ASYN_TRACE_FLOW,
@@ -346,142 +332,153 @@ void Dexela::newFrameCallback(int frameCounter, int bufferNumber)
 
   lock();
 
-  // This all needs to be in a try/catch block!
+  try {
+    getIntegerParam(ADFrameType,         &frameType);
+    getIntegerParam(DEX_OffsetAvailable, &offsetAvailable);
+    getIntegerParam(DEX_UseOffset,       &useOffset);
+    getIntegerParam(DEX_GainAvailable,   &gainAvailable);
+    getIntegerParam(DEX_UseGain,         &useGain);
+    getIntegerParam(DEX_UseDefectMap,    &useDefectMap);
+    getIntegerParam(ADAcquire,           &acquiring);
+    // At high rates we can be called for a few extra frames after acquisition is done
+    if (!acquiring) goto done;
 
-  getIntegerParam(ADFrameType, &frameType);
-  getIntegerParam(DEX_UseOffset, &useOffset);
-  getIntegerParam(DEX_UseGain, &useGain);
-  getIntegerParam(DEX_UseDefectMap, &useDefectMap);
-
-  switch (frameType) {
-    case ADFrameBackground:
-      getIntegerParam(DEX_NumOffsetFrames, &numOffsetFrames);
-      getIntegerParam(DEX_CurrentOffsetFrame, &offsetCounter);
-      pDetector_->ReadBuffer(bufferNumber, offsetImage_, offsetCounter);
-      pData = offsetImage_.GetDataPointerToPlane(offsetCounter);
-      offsetCounter++;
-      setIntegerParam(DEX_CurrentOffsetFrame, offsetCounter);
-      // If this is the last offset image then compute the median image and raise a flag to the 
-      // user that offset data is available
-      if (offsetCounter >= numOffsetFrames) {
-        offsetImage_.FindMedianofPlanes();
-        offsetImage_.SetImageType(Offset);
-        setIntegerParam(DEX_OffsetAvailable, AVAILABLE);
-        pData = offsetImage_.GetDataPointerToPlane();
-      }
-      break;
-
-    case ADFrameFlatField:
-      getIntegerParam(DEX_NumGainFrames, &numGainFrames);
-      getIntegerParam(DEX_CurrentGainFrame, &gainCounter);
-      pDetector_->ReadBuffer(bufferNumber, gainImage_, gainCounter);
-      pData = gainImage_.GetDataPointerToPlane(gainCounter);
-      gainCounter++;
-      setIntegerParam(DEX_CurrentGainFrame, gainCounter);
-      // If this is the last offset image then compute the flood image and raise a flag to the 
-      // user that offset data is available
-      if (gainCounter >= numGainFrames) {
-        gainImage_.FindMedianofPlanes();
-        gainImage_.FixFlood();
-        gainImage_.SetImageType(Gain);
-        setIntegerParam(DEX_GainAvailable, AVAILABLE);
-        dataType = NDFloat32;
-        pData = gainImage_.GetDataPointerToPlane();
-      }
-      break;
-
-    case ADFrameNormal:
-      getIntegerParam(ADImageMode, &imageMode);
-      getIntegerParam(ADNumImages, &numImages);
-      getIntegerParam(ADNumImagesCounter, &imageCounter);
-      if (imageMode == DEXImageAverage) {
-        pDetector_->ReadBuffer(bufferNumber, dataImage_, imageCounter);
-        if (imageCounter >= numImages-1) {
-          dataImage_.FindMedianofPlanes();
-        } else {
-          goto done;
+    switch (frameType) {
+      case ADFrameBackground:
+        getIntegerParam(DEX_NumOffsetFrames,    &numOffsetFrames);
+        getIntegerParam(DEX_CurrentOffsetFrame, &offsetCounter);
+        pDetector_->ReadBuffer(bufferNumber, offsetImage_, offsetCounter);
+        pData = offsetImage_.GetDataPointerToPlane(offsetCounter);
+        offsetCounter++;
+        setIntegerParam(DEX_CurrentOffsetFrame, offsetCounter);
+        // If this is the last offset image then compute the median image and raise a flag to the 
+        // user that offset data is available
+        if (offsetCounter == numOffsetFrames) {
+          offsetImage_.FindMedianofPlanes();
+          offsetImage_.UnscrambleImage();
+          offsetImage_.SetImageType(Offset);
+          setIntegerParam(DEX_OffsetAvailable, 1);
+          pData = offsetImage_.GetDataPointerToPlane();
+          setIntegerParam(DEX_AcquireOffset, 0);
+          setIntegerParam(ADAcquire, 0);
+          acquireStop();
         }
-      } else {
-        pDetector_->ReadBuffer(bufferNumber, dataImage_, 0);
-      }
-      imageCounter++;
-      setIntegerParam(ADNumImagesCounter, imageCounter);
-      dataImage_.SetImageType(Data);
+        break;
 
-      /** Correct for detector offset and gain as necessary */
-      if ((useOffset) && offsetImage_.IsEmpty())
-      {
-        dataImage_.LoadDarkImage(offsetImage_);
-        if ((useGain) && !gainImage_.IsEmpty()) {
-          dataImage_.LoadFloodImage(gainImage_);
-          dataImage_.FloodCorrection();
-        } else {
-          dataImage_.SubtractDark();
+      case ADFrameFlatField:
+        getIntegerParam(DEX_NumGainFrames,    &numGainFrames);
+        getIntegerParam(DEX_CurrentGainFrame, &gainCounter);
+        pDetector_->ReadBuffer(bufferNumber, gainImage_, gainCounter);
+        pData = gainImage_.GetDataPointerToPlane(gainCounter);
+        gainCounter++;
+        setIntegerParam(DEX_CurrentGainFrame, gainCounter);
+        // If this is the last offset image then compute the flood image and raise a flag to the 
+        // user that offset data is available
+        if (gainCounter >= numGainFrames) {
+          gainImage_.FindMedianofPlanes();
+          gainImage_.UnscrambleImage();
+          gainImage_.FixFlood();
+          gainImage_.SetImageType(Gain);
+          setIntegerParam(DEX_GainAvailable, 1);
+          dataType = NDFloat32;
+          pData = gainImage_.GetDataPointerToPlane();
+          setIntegerParam(DEX_AcquireGain, 0);
+          setIntegerParam(ADAcquire, 0);
+          acquireStop();
         }
+        break;
+
+      case ADFrameNormal:
+        getIntegerParam(ADImageMode, &imageMode);
+        getIntegerParam(ADNumImages, &numImages);
+        getIntegerParam(ADNumImagesCounter, &imageCounter);
+        pDetector_->ReadBuffer(bufferNumber, dataImage);
+        if ((imageMode == ADImageSingle) ||
+            ((imageMode == ADImageMultiple) && 
+             (imageCounter >= numImages-1))) {
+          acquireStop();
+          setIntegerParam(ADAcquire, 0);
+        }
+        imageCounter++;
+        setIntegerParam(ADNumImagesCounter, imageCounter);
+        dataImage.UnscrambleImage();
+        dataImage.SetImageType(Data);
+
+        /** Correct for detector offset and gain as necessary */
+        if (offsetAvailable && useOffset && !offsetImage_.IsEmpty()) {
+          dataImage.LoadDarkImage(offsetImage_);
+          if (gainAvailable && useGain && !gainImage_.IsEmpty()) {
+            dataImage.LoadFloodImage(gainImage_);
+            dataImage.FloodCorrection();
+          } else {
+            dataImage.SubtractDark();
+          }
+        }
+
+        /** Correct for dead pixels as necessary */
+
+        pData = dataImage.GetDataPointerToPlane();
+        break;
+    }
+
+    getIntegerParam(NDArrayCallbacks, &arrayCallbacks);
+    if (arrayCallbacks) {
+      /* Update the image */
+      /* We save the most recent image buffer so it can be used in the read() function.
+       * Now release it before getting a new version. */
+      if (this->pArrays[0])
+          this->pArrays[0]->release();
+      /* Allocate the array */
+      dims[0] = pDetector_->GetBufferXdim();
+      dims[1] = pDetector_->GetBufferYdim();
+      this->pArrays[0] = pNDArrayPool->alloc(2, dims, dataType, 0, NULL);
+      if (this->pArrays[0] == NULL) {
+        asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
+          "%s:%s: error allocating buffer\n",
+          driverName, functionName);
+        unlock();
+        return;
       }
+      pImage = this->pArrays[0];
+      pImage->getInfo(&arrayInfo);
+      // Copy the data from the input to the output
+      memcpy(pImage->pData, pData, arrayInfo.totalBytes);
 
-      /** Correct for dead pixels as necessary */
+      setIntegerParam(NDArraySize,  (int)arrayInfo.totalBytes);
+      setIntegerParam(NDArraySizeX, (int)pImage->dims[0].size);
+      setIntegerParam(NDArraySizeY, (int)pImage->dims[1].size);
 
-      pData = dataImage_.GetDataPointerToPlane();
-      break;
+      /* Put the frame number and time stamp into the buffer */
+      getIntegerParam(NDArrayCounter, &arrayCounter);
+      arrayCounter++;
+      setIntegerParam(NDArrayCounter, arrayCounter);
+      pImage->uniqueId = arrayCounter;
+      epicsTimeGetCurrent(&currentTime);
+      pImage->timeStamp = currentTime.secPastEpoch + currentTime.nsec / 1.e9;
+      updateTimeStamp(&pImage->epicsTS);
+
+      /* Get any attributes that have been defined for this driver */
+      getAttributes(pImage->pAttributeList);
+
+      /* Call the NDArray callback */
+      /* Must release the lock here, or we can get into a deadlock, because we can
+       * block on the plugin lock, and the plugin can be calling us */
+      unlock();
+      asynPrint(pasynUserSelf, ASYN_TRACE_FLOW,
+        "%s:%s: calling imageData callback\n", 
+        driverName, functionName);
+      doCallbacksGenericPointer(pImage, NDArrayData, 0);
+      lock();
+    }
+
+    done:
+
+    // Do callbacks on parameters
+    callParamCallbacks();
+
+  } catch (DexelaException &e) {
+    reportError(functionName, e);
   }
-
-  // Should only do the following if ArrayCallbacks is true!
-
-  /* Update the image */
-  /* We save the most recent image buffer so it can be used in the read() function.
-   * Now release it before getting a new version. */
-  if (this->pArrays[0])
-      this->pArrays[0]->release();
-  /* Allocate the array */
-  dims[0] = pDetector_->GetBufferXdim();
-  dims[1] = pDetector_->GetBufferYdim();
-  this->pArrays[0] = pNDArrayPool->alloc(2, dims, dataType, 0, NULL);
-  if (this->pArrays[0] == NULL) {
-    asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-      "%s:%s: error allocating buffer\n",
-      driverName, functionName);
-    unlock();
-    return;
-  }
-  pImage = this->pArrays[0];
-  pImage->getInfo(&arrayInfo);
-  // Copy the data from the input to the output
-  memcpy(pImage->pData, pData, arrayInfo.totalBytes);
-
-  setIntegerParam(NDArraySize,  (int)arrayInfo.totalBytes);
-  setIntegerParam(NDArraySizeX, (int)pImage->dims[0].size);
-  setIntegerParam(NDArraySizeY, (int)pImage->dims[1].size);
-
-  /* Put the frame number and time stamp into the buffer */
-  getIntegerParam(NDArrayCounter, &arrayCounter);
-  arrayCounter++;
-  setIntegerParam(NDArrayCounter, arrayCounter);
-  pImage->uniqueId = arrayCounter;
-  epicsTimeGetCurrent(&currentTime);
-  pImage->timeStamp = currentTime.secPastEpoch + currentTime.nsec / 1.e9;
-  updateTimeStamp(&pImage->epicsTS);
-
-  /* Get any attributes that have been defined for this driver */
-  getAttributes(pImage->pAttributeList);
-
-  /* Call the NDArray callback */
-  /* Must release the lock here, or we can get into a deadlock, because we can
-   * block on the plugin lock, and the plugin can be calling us */
-  unlock();
-  asynPrint(pasynUserSelf, ASYN_TRACE_FLOW,
-    "%s:%s: calling imageData callback\n", 
-    driverName, functionName);
-  doCallbacksGenericPointer(pImage, NDArrayData, 0);
-  lock();
-
-  done:
-
-  // Need to test to see if acquisition is complete.  If so, close shutter.
-
-  // Do callbacks on parameters
-  callParamCallbacks();
-
   unlock();
   asynPrint(pasynUserSelf, ASYN_TRACE_FLOW,
     "%s:%s: exit\n",
@@ -497,70 +494,75 @@ void Dexela::newFrameCallback(int frameCounter, int bufferNumber)
 asynStatus Dexela::writeInt32(asynUser *pasynUser, epicsInt32 value)
 {
   int function = pasynUser->reason;
-  int adstatus;
+  int acquiring;
   int status = asynSuccess;
   static const char *functionName = "writeInt32";
 
-  /* Set the parameter and readback in the parameter library.  This may be overwritten when we read back the
-   * status at the end, but that's OK */
-  status = setIntegerParam(function, value);
+  getIntegerParam(ADAcquire, &acquiring);
 
-  getIntegerParam(ADStatus, &adstatus);
+  try {
+    /* Set the parameter and readback in the parameter library.  This may be overwritten when we read back the
+     * status at the end, but that's OK */
+    status = setIntegerParam(function, value);
 
-  if (function == ADAcquire) {
+    if (function == ADAcquire) {
 
-    // Start acquisition
-    if (value && (adstatus == ADStatusIdle) )
-    {
-      acquireStart();
+      // Start acquisition
+      if (value && !acquiring)
+      {
+        acquireStart();
+      }
+
+      // Stop acquisition
+      if (!value && acquiring)
+      {
+        acquireStop();
+      }
     }
-
-    // Stop acquisition
-    if (!value && (adstatus != ADStatusIdle))
-    {
-      acquireStop();
+    else if (function == DEX_AcquireOffset) {
+      if (!acquiring) {
+        acquireOffsetImage();
+      }
     }
-  }
-  else if (function == DEX_BinningMode) {
-    if ( adstatus == ADStatusIdle ) {
+    else if (function ==  DEX_AcquireGain) {
+      if (!acquiring) {
+        acquireGainImage();
+      }
+    }
+    else if (function == DEX_BinningMode) {
       pDetector_->SetBinningMode((bins)value);
-    }    
-  }
-  else if (function == DEX_AcquireOffset) {
-    if ( adstatus == ADStatusIdle ) {
-      acquireOffsetImage();
     }
-  }
-  else if (function ==  DEX_AcquireGain) {
-    if ( adstatus == ADStatusIdle ) {
-      acquireGainImage();
+    else if (function == DEX_FullWellMode) {
+      pDetector_->SetFullWellMode((FullWellModes)value);
     }
-  }
-  else if (function == DEX_SoftwareTrigger) {
-    pDetector_->SoftwareTrigger();
-  }
-  else if (function == ADTriggerMode) {
-    pDetector_->SetTriggerSource((ExposureTriggerSource)value);
-  }
-  else if (function == DEX_LoadGainFile) {
-    loadGainFile();
-  }
-  else if (function == DEX_SaveGainFile) {
-    saveGainFile();
-  }
-  else if (function == DEX_LoadDefectMapFile) {
-    loadDefectMapFile();
-  }
+    else if (function == DEX_SoftwareTrigger) {
+      pDetector_->SoftwareTrigger();
+    }
+    else if (function == ADTriggerMode) {
+      pDetector_->SetTriggerSource((ExposureTriggerSource)value);
+    }
+    else if (function == DEX_LoadGainFile) {
+      loadGainFile();
+    }
+    else if (function == DEX_SaveGainFile) {
+      saveGainFile();
+    }
+    else if (function == DEX_LoadDefectMapFile) {
+      loadDefectMapFile();
+    }
 
-  else {
-    /* If this parameter belongs to a base class call its method */
-    if (function < DEX_FIRST_PARAM) {
-      status = ADDriver::writeInt32(pasynUser, value);
+    else {
+      /* If this parameter belongs to a base class call its method */
+      if (function < DEX_FIRST_PARAM) {
+        status = ADDriver::writeInt32(pasynUser, value);
+      }
     }
-  }
 
-  /* Do callbacks so higher layers see any changes */
-  callParamCallbacks();
+    /* Do callbacks so higher layers see any changes */
+    callParamCallbacks();
+  } catch (DexelaException &e) {
+    reportError(functionName, e);
+  }
 
   if (status)
     asynPrint(pasynUser, ASYN_TRACE_ERROR,
@@ -588,21 +590,25 @@ asynStatus Dexela::writeFloat64(asynUser *pasynUser, epicsFloat64 value)
   asynStatus status = asynSuccess;
   static const char *functionName = "writeFloat64";
 
-  /* Set the parameter and readback in the parameter library.  This may be overwritten but that's OK */
-  status = setDoubleParam(function, value);
+  try {
+    /* Set the parameter and readback in the parameter library.  This may be overwritten but that's OK */
+    status = setDoubleParam(function, value);
 
-  if (function == ADAcquireTime) {
-    pDetector_->SetExposureTime((float)(value * 1000.));
-  }
-  else {
-    /* If this parameter belongs to a base class call its method */
-    if (function < DEX_FIRST_PARAM) {
-      status = ADDriver::writeFloat64(pasynUser, value);
+    if (function == ADAcquireTime) {
+      pDetector_->SetExposureTime((float)(value * 1000.));
     }
-  }
+    else {
+      /* If this parameter belongs to a base class call its method */
+      if (function < DEX_FIRST_PARAM) {
+        status = ADDriver::writeFloat64(pasynUser, value);
+      }
+    }
 
-  /* Do callbacks so higher layers see any changes */
-  callParamCallbacks();
+    /* Do callbacks so higher layers see any changes */
+    callParamCallbacks();
+  } catch (DexelaException &e) {
+    reportError(functionName, e);
+  }
 
   if (status)
     asynPrint(pasynUser, ASYN_TRACE_ERROR,
@@ -640,7 +646,7 @@ asynStatus Dexela::readEnum(asynUser *pasynUser, char *strings[], int values[], 
       }
     }
   }
-  if (function == DEX_FullWellMode) {
+  else if (function == DEX_FullWellMode) {
     for (i=0; ((i<MAX_FULL_WELL) && (i<(int)nElements)); i++) {
       exists = pDetector_->QueryFullWellMode((FullWellModes)fullWellEnums[i].value);
       if (exists == 1) {
@@ -683,30 +689,34 @@ void Dexela::acquireStart(void)
   int     status = asynSuccess;
   static const char *functionName = "acquireStart";
 
-  //get some information
-  getIntegerParam(ADImageMode, &imageMode);
-  getIntegerParam(ADNumImages, &numImages);
+  try {
+    //get some information
+    getIntegerParam(ADImageMode, &imageMode);
+    getIntegerParam(ADNumImages, &numImages);
+    setIntegerParam(ADFrameType, ADFrameNormal);
 
-  setIntegerParam(ADNumImagesCounter, 0);
-  setIntegerParam(ADStatus, ADStatusAcquire);
+    setIntegerParam(ADNumImagesCounter, 0);
+    setIntegerParam(ADStatus, ADStatusAcquire);
 
-  setShutter(ADShutterOpen);
-  switch (imageMode) {
-    case DEXImageContinuous:
-      pDetector_->SetExposureMode(Sequence_Exposure);
-      pDetector_->SetNumOfExposures(numImages);
-      pDetector_->GoLiveSeq();
-      pDetector_->ToggleGenerator(true);
-      break;
-    case DEXImageSingle:
-      numImages = 1;
-    case DEXImageMultiple:
-    case DEXImageAverage:
-      pDetector_->SetExposureMode(Sequence_Exposure);
-      pDetector_->SetNumOfExposures(numImages);
-      pDetector_->GoLiveSeq();
-      pDetector_->ToggleGenerator(true);
-      break;
+    setShutter(ADShutterOpen);
+    switch (imageMode) {
+      case DEXImageContinuous:
+        pDetector_->SetExposureMode(Sequence_Exposure);
+        pDetector_->SetNumOfExposures(numImages);
+        pDetector_->GoLiveSeq();
+        pDetector_->ToggleGenerator(true);
+        break;
+      case DEXImageSingle:
+        numImages = 1;
+      case DEXImageMultiple:
+        pDetector_->SetExposureMode(Sequence_Exposure);
+        pDetector_->SetNumOfExposures(numImages);
+        pDetector_->GoLiveSeq();
+        pDetector_->ToggleGenerator(true);
+        break;
+    }
+  } catch (DexelaException &e) {
+    reportError(functionName, e);
   }
 }
 
@@ -715,9 +725,15 @@ void Dexela::acquireStart(void)
 /** Stop acquisition */
 void Dexela::acquireStop(void)
 {
-  setShutter(ADShutterClosed);
-  pDetector_->ToggleGenerator(false);
-  pDetector_->GoUnLive();
+  static const char *functionName = "acquireStop";
+  
+  try {
+    setShutter(ADShutterClosed);
+    pDetector_->ToggleGenerator(false);
+    pDetector_->GoUnLive();
+  } catch (DexelaException &e) {
+    reportError(functionName, e);
+  }
 }
 
 //_____________________________________________________________________________________________
@@ -726,21 +742,28 @@ void Dexela::acquireStop(void)
 void Dexela::acquireOffsetImage(void)
 {
   int numFrames;
-  const char   *functionName = "acquireOffsetImage";
+  static const char *functionName = "acquireOffsetImage";
 
-  getIntegerParam(DEX_NumOffsetFrames, &numFrames);
+  try {
+    getIntegerParam(DEX_NumOffsetFrames, &numFrames);
 
-  setIntegerParam(ADFrameType, ADFrameBackground);
-  setIntegerParam(DEX_CurrentOffsetFrame, 0);
-  setIntegerParam(DEX_OffsetAvailable, NOT_AVAILABLE);
-  
-  // Make sure the shutter is closed
-  setShutter(ADShutterClosed);
-  
-  pDetector_->SetExposureMode(Sequence_Exposure);
-  pDetector_->SetNumOfExposures(numFrames);
-  pDetector_->GoLiveSeq();
-  pDetector_->ToggleGenerator(true);
+    setIntegerParam(ADFrameType, ADFrameBackground);
+    setIntegerParam(DEX_CurrentOffsetFrame, 0);
+    setIntegerParam(DEX_OffsetAvailable, 0);
+    setIntegerParam(ADAcquire, 1);
+    
+    offsetImage_ = DexImage();
+
+    // Make sure the shutter is closed
+    setShutter(ADShutterClosed);
+
+    pDetector_->SetExposureMode(Sequence_Exposure);
+    pDetector_->SetNumOfExposures(numFrames);
+    pDetector_->GoLiveSeq();
+    pDetector_->ToggleGenerator(true);
+  } catch (DexelaException &e) {
+    reportError(functionName, e);
+  }
 }
 
 //_____________________________________________________________________________________________
@@ -749,21 +772,27 @@ void Dexela::acquireOffsetImage(void)
 void Dexela::acquireGainImage(void)
 {
   int numFrames;
-  const char   *functionName = "acquireOffsetImage";
+  static const char *functionName = "acquireOffsetImage";
 
-  getIntegerParam(DEX_NumGainFrames, &numFrames);
+  try {
+    getIntegerParam(DEX_NumGainFrames, &numFrames);
 
-  setIntegerParam(ADFrameType, ADFrameFlatField);
-  setIntegerParam(DEX_CurrentGainFrame, 0);
-  setIntegerParam(DEX_GainAvailable, NOT_AVAILABLE);
-  
-  // Make sure the shutter is open
-  setShutter(ADShutterOpen);
-  
-  pDetector_->SetExposureMode(Sequence_Exposure);
-  pDetector_->SetNumOfExposures(numFrames);
-  pDetector_->GoLiveSeq();
-  pDetector_->ToggleGenerator(true);
+    setIntegerParam(ADFrameType, ADFrameFlatField);
+    setIntegerParam(DEX_CurrentGainFrame, 0);
+    setIntegerParam(DEX_GainAvailable, 0);
+    setIntegerParam(ADAcquire, 1);
+    gainImage_ = DexImage();
+
+    // Make sure the shutter is open
+    setShutter(ADShutterOpen);
+
+    pDetector_->SetExposureMode(Sequence_Exposure);
+    pDetector_->SetNumOfExposures(numFrames);
+    pDetector_->GoLiveSeq();
+    pDetector_->ToggleGenerator(true);
+  } catch (DexelaException &e) {
+    reportError(functionName, e);
+  }
 }
 
 //_____________________________________________________________________________________________
@@ -775,12 +804,16 @@ asynStatus Dexela::saveGainFile(void)
   char fileName[256];
   static const char *functionName = "saveGainFile";
 
-  getStringParam(DEX_CorrectionsDirectory, sizeof(filePath), filePath);
-  getStringParam(DEX_GainFile, sizeof(fileName), fileName);
-  strcat(filePath, fileName);
+  try {
+    getStringParam(DEX_CorrectionsDirectory, sizeof(filePath), filePath);
+    getStringParam(DEX_GainFile, sizeof(fileName), fileName);
+    strcat(filePath, fileName);
 
-  if (gainImage_.IsEmpty()) return asynError;
-  gainImage_.WriteImage(filePath);
+    if (gainImage_.IsEmpty()) return asynError;
+    gainImage_.WriteImage(filePath);
+  } catch (DexelaException &e) {
+    reportError(functionName, e);
+  }
   return asynSuccess;
 }
 
@@ -794,11 +827,15 @@ asynStatus Dexela::loadGainFile (void)
   char fileName[256];
   static const char *functionName = "loadGainFile";
 
-  getStringParam(DEX_CorrectionsDirectory, sizeof(filePath), filePath);
-  getStringParam(DEX_GainFile, sizeof(fileName), fileName);
-  strcat(filePath, fileName);
+  try {
+    getStringParam(DEX_CorrectionsDirectory, sizeof(filePath), filePath);
+    getStringParam(DEX_GainFile, sizeof(fileName), fileName);
+    strcat(filePath, fileName);
 
-  gainImage_.ReadImage(filePath);
+    gainImage_.ReadImage(filePath);
+  } catch (DexelaException &e) {
+    reportError(functionName, e);
+  }
   return asynSuccess;
 }
 //_____________________________________________________________________________________________
@@ -810,11 +847,15 @@ asynStatus Dexela::loadDefectMapFile()
   char fileName[256];
   static const char *functionName = "loadDefectFile";
 
-  getStringParam(DEX_CorrectionsDirectory, sizeof(filePath), filePath);
-  getStringParam(DEX_DefectMapFile, sizeof(fileName), fileName);
-  strcat(filePath, fileName);
+  try {
+    getStringParam(DEX_CorrectionsDirectory, sizeof(filePath), filePath);
+    getStringParam(DEX_DefectMapFile, sizeof(fileName), fileName);
+    strcat(filePath, fileName);
 
-  defectMapImage_.ReadImage(filePath);
+    defectMapImage_.ReadImage(filePath);
+  } catch (DexelaException &e) {
+    reportError(functionName, e);
+  }
   return asynSuccess;
 }
 
