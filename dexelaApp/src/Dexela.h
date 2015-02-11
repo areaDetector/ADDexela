@@ -97,13 +97,13 @@ private:
   DexImage       offsetImage_;
   DexImage       gainImage_;
   DexImage       defectMapImage_;
-  DexImage       dataImage_;
   int            sensorX_;
   int            sensorY_;
   char           modelName_[80];
   int            serialNumber_;
 
   void reportSensors(FILE *fp, int details);
+  void reportError(const char *functionName, DexelaException &e);
   void acquireStart(void);
   void acquireStop(void);
   void acquireOffsetImage(void);
