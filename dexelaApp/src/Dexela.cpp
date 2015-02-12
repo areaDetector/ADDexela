@@ -331,6 +331,8 @@ void Dexela::newFrameCallback(int frameCounter, int bufferNumber)
     driverName, functionName);
 
   lock();
+  
+printf("%s::%s frameCounter=%d, IsLive=%d\n", driverName, functionName, frameCounter, pDetector_->IsLive());
 
   try {
     getIntegerParam(ADFrameType,         &frameType);
@@ -700,15 +702,15 @@ void Dexela::acquireStart(void)
 
     setShutter(ADShutterOpen);
     switch (imageMode) {
-      case DEXImageContinuous:
+      case ADImageContinuous:
         pDetector_->SetExposureMode(Sequence_Exposure);
         pDetector_->SetNumOfExposures(numImages);
         pDetector_->GoLiveSeq();
         pDetector_->ToggleGenerator(true);
         break;
-      case DEXImageSingle:
+      case ADImageSingle:
         numImages = 1;
-      case DEXImageMultiple:
+      case ADImageMultiple:
         pDetector_->SetExposureMode(Sequence_Exposure);
         pDetector_->SetNumOfExposures(numImages);
         pDetector_->GoLiveSeq();
@@ -730,6 +732,7 @@ void Dexela::acquireStop(void)
   try {
     setShutter(ADShutterClosed);
     pDetector_->ToggleGenerator(false);
+printf("%s::%s calling GoUnLive()\n", driverName, functionName);
     pDetector_->GoUnLive();
   } catch (DexelaException &e) {
     reportError(functionName, e);
