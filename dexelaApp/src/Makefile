@@ -14,6 +14,12 @@ LIB_LIBS += DexelaException
 LIB_LIBS += BusScanner
 LIB_LIBS += DexImage
 
+PROD += ImageCallbackEx
+PROD_LIBS += DexelaDetector
+PROD_LIBS += DexelaException
+PROD_LIBS += BusScanner
+PROD_LIBS += DexImage
+
 DBD += DexelaSupport.dbd
 
 include $(ADCORE)/ADApp/commonLibraryMakefile
