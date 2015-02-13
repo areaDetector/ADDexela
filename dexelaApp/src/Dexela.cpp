@@ -187,14 +187,16 @@ Dexela::Dexela(const char *portName,  int detIndex,
     pDetector_ = new DexelaDetector(devInfo_);
     // Connect to board
     pDetector_->OpenBoard();
-    sensorX_ = pDetector_->GetSensorWidth();
+    sensorX_      = pDetector_->GetSensorWidth();
+    sensorY_      = pDetector_->GetSensorHeight();
+    modelNumber_  = pDetector_->GetModelNumber();
+    binningMode_  = pDetector_->GetBinningMode();
+    serialNumber_ = pDetector_->GetSerialNumber();
     setIntegerParam(ADMaxSizeX, sensorX_);
-    sensorY_ = pDetector_->GetSensorHeight();
     setIntegerParam(ADMaxSizeY, sensorY_);
     setStringParam(ADManufacturer, "Perkin Elmer");
-    sprintf(modelName_, "Dexela %d", pDetector_->GetModelNumber());
+    sprintf(modelName_, "Dexela %d", modelNumber_);
     setStringParam(ADModel, modelName_);
-    serialNumber_ = pDetector_->GetSerialNumber();
     setIntegerParam(DEX_SerialNumber, serialNumber_);
 
     // Set callback
@@ -394,6 +396,7 @@ printf("%s::%s frameCounter=%d, IsLive=%d\n", driverName, functionName, frameCou
         getIntegerParam(ADImageMode, &imageMode);
         getIntegerParam(ADNumImages, &numImages);
         getIntegerParam(ADNumImagesCounter, &imageCounter);
+        dataImage.SetImageParameters(binningMode_, modelNumber_);
         pDetector_->ReadBuffer(bufferNumber, dataImage);
         if ((imageMode == ADImageSingle) ||
             ((imageMode == ADImageMultiple) && 
@@ -532,7 +535,8 @@ asynStatus Dexela::writeInt32(asynUser *pasynUser, epicsInt32 value)
       }
     }
     else if (function == DEX_BinningMode) {
-      pDetector_->SetBinningMode((bins)value);
+      binningMode_ = (bins)value;
+      pDetector_->SetBinningMode(binningMode_);
     }
     else if (function == DEX_FullWellMode) {
       pDetector_->SetFullWellMode((FullWellModes)value);
