@@ -1,20 +1,18 @@
 // ImageCallbackEx.cpp : Defines the entry point for the console application.
 //
 
-#include "stdafx.h"
 #include "DexelaDetector.h"
 #include "BusScanner.h"
 #include "DexImage.h"
 #include "DexelaException.h"
 #include <conio.h>
-#include <iostream>
 
 using namespace std;
 
 void AcquireCallbackSequence(DexelaDetector &detector);
 void myCallback(int fc, int buf, DexelaDetector* det);
 
-int _tmain(int argc, _TCHAR* argv[])
+int main(int argc, char* argv[])
 {
 	int nRetCode = 0;
 	try
@@ -48,7 +46,7 @@ void AcquireCallbackSequence(DexelaDetector &detector)
 {
 	ExposureModes expMode = Expose_and_read;
 	FullWellModes wellMode = High;
-	float exposureTime = 50.0f;
+	float exposureTime = 5.0f;
 	ExposureTriggerSource trigger = Internal_Software;;
 	int imCnt = 0; //image count
 	bins binFmt = x11;
@@ -70,7 +68,6 @@ void AcquireCallbackSequence(DexelaDetector &detector)
 	
 	//put detector into live mode
 	detector.GoLiveSeq();
-	bool isLive;
 		
 	//wait for input from user to trigger image sequence
 	printf("\nPress any key to begin acquisition!\n");
@@ -101,5 +98,27 @@ void AcquireCallbackSequence(DexelaDetector &detector)
 
 void myCallback(int fc, int buf, DexelaDetector* det)
 {
-	printf("Image: %d grabbed! Image is in buffer: %d\n",fc,buf);
+  static DexImage offset;
+  DexImage data;
+  static bool firstTime = true;
+  unsigned short *pData;
+  static int modelNumber;
+  static bins binningMode;
+  printf("Image: %d grabbed! Image is in buffer: %d\n",fc,buf);
+  if (firstTime) {
+    firstTime = false;
+    det->ReadBuffer(buf, offset);
+    pData = (unsigned short *)offset.GetDataPointerToPlane();
+    printf("First offset pixel=%u\n", pData[0]);
+    modelNumber = det->GetModelNumber();
+    binningMode = det->GetBinningMode();
+  } else {
+    data.SetImageParameters(binningMode, modelNumber);
+    det->ReadBuffer(buf, data);
+    data.LoadDarkImage(offset);
+    data.SetDarkOffset(50);
+    data.SubtractDark();
+    pData = (unsigned short *)data.GetDataPointerToPlane();
+    printf("First data pixel=%u\n", pData[0]);
+  }
 }
