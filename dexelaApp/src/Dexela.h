@@ -100,7 +100,9 @@ private:
   int            sensorX_;
   int            sensorY_;
   char           modelName_[80];
+  int            modelNumber_;
   int            serialNumber_;
+  bins           binningMode_;
 
   void reportSensors(FILE *fp, int details);
   void reportError(const char *functionName, DexelaException &e);
