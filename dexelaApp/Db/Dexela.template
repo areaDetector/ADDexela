@@ -128,6 +128,46 @@ record(bo, "$(P)$(R)DEXUseOffset")
    field(ONAM, "Enable")
 }
 
+record(waveform, "$(P)$(R)DEXOffsetFile")
+{
+    field(PINI, "YES")
+    field(DTYP, "asynOctetWrite")
+    field(INP,  "@asyn($(PORT),$(ADDR),$(TIMEOUT))DEX_OFFSET_FILE")
+    field(FTVL, "CHAR")
+    field(NELM, "256")
+}
+
+record(bo, "$(P)$(R)DEXLoadOffsetFile")
+{
+   field(DTYP, "asynInt32")
+   field(OUT,  "@asyn($(PORT),$(ADDR),$(TIMEOUT))DEX_LOAD_OFFSET_FILE")
+   field(ZNAM, "Done")
+   field(ONAM, "Load")
+}
+
+record(bo, "$(P)$(R)DEXSaveOffsetFile")
+{
+   field(DTYP, "asynInt32")
+   field(OUT,  "@asyn($(PORT),$(ADDR),$(TIMEOUT))DEX_SAVE_OFFSET_FILE")
+   field(ZNAM, "Done")
+   field(ONAM, "Save")
+}
+
+record(longout, "$(P)$(R)DEXOffsetConstant")
+{
+   field(PINI, "YES")
+   field(DTYP, "asynInt32")
+   field(OUT,  "@asyn($(PORT),$(ADDR),$(TIMEOUT))DEX_OFFSET_CONSTANT")
+}
+
+record(longin, "$(P)$(R)DEXOffsetConstant_RBV")
+{
+   field(DTYP, "asynInt32")
+   field(INP,  "@asyn($(PORT),$(ADDR),$(TIMEOUT))DEX_OFFSET_CONSTANT")
+   field(SCAN, "I/O Intr")
+}
+
+
 ######################
 # Gain correction records
 ######################
@@ -235,7 +275,7 @@ record(waveform, "$(P)$(R)DEXDefectMapFile")
     field(NELM, "256")
 }
 
-record(bo, "$(P)$(R)DEXLoadDefectMap")
+record(bo, "$(P)$(R)DEXLoadDefectMapFile")
 {
    field(DTYP, "asynInt32")
    field(OUT,  "@asyn($(PORT),$(ADDR),$(TIMEOUT))DEX_LOAD_DEFECT_MAP_FILE")
