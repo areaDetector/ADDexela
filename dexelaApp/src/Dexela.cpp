@@ -55,11 +55,21 @@ static enumStruct_t binEnums[MAX_BINNING]= {
   {ix22, "2H x 2V digital"}
 };
 
-#define MAX_TRIGGERS 3
+typedef enum {
+  DEXInternalFreeRun,
+  DEXInternalFixedRate,
+  DEXInternalSoftware,
+  DEXExternalNegEdge,
+  DEXExternalBulb
+} DEXTriggerMode_t;
+
+#define MAX_TRIGGERS 5
 static enumStruct_t triggerEnums[MAX_TRIGGERS]= {
-  {Internal_Software, "Internal"},
-  {Ext_neg_edge_trig, "Ext. neg. edge"},
-  {Ext_Duration_Trig, "Bulb"}
+  {DEXInternalFreeRun,   "Int. Free Run"},
+  {DEXInternalFixedRate, "Int. Fixed Rate"},
+  {DEXInternalSoftware,  "Int. Software"},
+  {DEXExternalNegEdge,   "Ext. neg. edge"},
+  {DEXExternalBulb,      "Ext. Bulb"}
 };
 
 #define MAX_FULL_WELL 2
@@ -139,6 +149,10 @@ Dexela::Dexela(const char *portName,  int detIndex,
   createParam(DEX_CurrentOffsetFrameString,          asynParamInt32,   &DEX_CurrentOffsetFrame);
   createParam(DEX_UseOffsetString,                   asynParamInt32,   &DEX_UseOffset);
   createParam(DEX_OffsetAvailableString,             asynParamInt32,   &DEX_OffsetAvailable);
+  createParam(DEX_OffsetFileString,                  asynParamOctet,   &DEX_OffsetFile);
+  createParam(DEX_LoadOffsetFileString,              asynParamInt32,   &DEX_LoadOffsetFile);
+  createParam(DEX_SaveOffsetFileString,              asynParamInt32,   &DEX_SaveOffsetFile);
+  createParam(DEX_OffsetConstantString,              asynParamInt32,   &DEX_OffsetConstant);
   createParam(DEX_AcquireGainString,                 asynParamInt32,   &DEX_AcquireGain);
   createParam(DEX_NumGainFramesString,               asynParamInt32,   &DEX_NumGainFrames);
   createParam(DEX_CurrentGainFrameString,            asynParamInt32,   &DEX_CurrentGainFrame);
@@ -192,21 +206,23 @@ Dexela::Dexela(const char *portName,  int detIndex,
     modelNumber_  = pDetector_->GetModelNumber();
     binningMode_  = pDetector_->GetBinningMode();
     serialNumber_ = pDetector_->GetSerialNumber();
+    numBuffers_   = pDetector_->GetNumBuffers();
     setIntegerParam(ADMaxSizeX, sensorX_);
     setIntegerParam(ADMaxSizeY, sensorY_);
     setStringParam(ADManufacturer, "Perkin Elmer");
     sprintf(modelName_, "Dexela %d", modelNumber_);
     setStringParam(ADModel, modelName_);
     setIntegerParam(DEX_SerialNumber, serialNumber_);
+    snapBuffer_ = 0;
 
     // Set callback
     pDetector_->SetCallback(::newFrameCallback);
 
     // Enable pulse generator
-   pDetector_->EnablePulseGenerator();
+    pDetector_->EnablePulseGenerator();
 
-   // Turn off pulses
-   pDetector_->ToggleGenerator(false);
+    // Turn off pulses
+    pDetector_->ToggleGenerator(false);
 
   } catch (DexelaException &e) {
     reportError(functionName, e);
@@ -300,6 +316,7 @@ void Dexela::reportSensors(FILE *fp, int details)
   }
 }
 
+//_____________________________________________________________________________________________
 // Callback function that is called by from ::newFrameCallback for each frame
 void Dexela::newFrameCallback(int frameCounter, int bufferNumber)
 {
@@ -321,6 +338,7 @@ void Dexela::newFrameCallback(int frameCounter, int bufferNumber)
   int           useDefectMap;
   int           frameType;
   int           acquiring;
+  int           darkOffset;
   size_t        dims[2];
   NDArray       *pImage;
   NDDataType_t  dataType = NDUInt16;
@@ -334,8 +352,6 @@ void Dexela::newFrameCallback(int frameCounter, int bufferNumber)
 
   lock();
   
-printf("%s::%s frameCounter=%d, IsLive=%d\n", driverName, functionName, frameCounter, pDetector_->IsLive());
-
   try {
     getIntegerParam(ADFrameType,         &frameType);
     getIntegerParam(DEX_OffsetAvailable, &offsetAvailable);
@@ -406,11 +422,16 @@ printf("%s::%s frameCounter=%d, IsLive=%d\n", driverName, functionName, frameCou
         }
         imageCounter++;
         setIntegerParam(ADNumImagesCounter, imageCounter);
+        getIntegerParam(NDArrayCounter, &arrayCounter);
+        arrayCounter++;
+        setIntegerParam(NDArrayCounter, arrayCounter);
         dataImage.UnscrambleImage();
         dataImage.SetImageType(Data);
 
         /** Correct for detector offset and gain as necessary */
         if (offsetAvailable && useOffset && !offsetImage_.IsEmpty()) {
+          getIntegerParam(DEX_OffsetConstant, &darkOffset);
+          dataImage.SetDarkOffset(darkOffset);
           dataImage.LoadDarkImage(offsetImage_);
           if (gainAvailable && useGain && !gainImage_.IsEmpty()) {
             dataImage.LoadFloodImage(gainImage_);
@@ -441,8 +462,7 @@ printf("%s::%s frameCounter=%d, IsLive=%d\n", driverName, functionName, frameCou
         asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
           "%s:%s: error allocating buffer\n",
           driverName, functionName);
-        unlock();
-        return;
+        goto done;
       }
       pImage = this->pArrays[0];
       pImage->getInfo(&arrayInfo);
@@ -454,10 +474,7 @@ printf("%s::%s frameCounter=%d, IsLive=%d\n", driverName, functionName, frameCou
       setIntegerParam(NDArraySizeY, (int)pImage->dims[1].size);
 
       /* Put the frame number and time stamp into the buffer */
-      getIntegerParam(NDArrayCounter, &arrayCounter);
-      arrayCounter++;
-      setIntegerParam(NDArrayCounter, arrayCounter);
-      pImage->uniqueId = arrayCounter;
+      pImage->uniqueId = frameCounter;
       epicsTimeGetCurrent(&currentTime);
       pImage->timeStamp = currentTime.secPastEpoch + currentTime.nsec / 1.e9;
       updateTimeStamp(&pImage->epicsTS);
@@ -491,8 +508,9 @@ printf("%s::%s frameCounter=%d, IsLive=%d\n", driverName, functionName, frameCou
 }
 
 
+//_____________________________________________________________________________________________
 /** Called when asyn clients call pasynInt32->write().
-  * This function performs actions for some parameters, including ADAcquire, ADBinX, etc.
+  * This function performs actions for some parameters, including ADAcquire, DEX_AcquireOffset, etc.
   * For all parameters it sets the value in the parameter library and calls any registered callbacks..
   * \param[in] pasynUser pasynUser structure that encodes the reason and address.
   * \param[in] value Value to write. */
@@ -511,16 +529,12 @@ asynStatus Dexela::writeInt32(asynUser *pasynUser, epicsInt32 value)
     status = setIntegerParam(function, value);
 
     if (function == ADAcquire) {
-
       // Start acquisition
-      if (value && !acquiring)
-      {
+      if (value && !acquiring) {
         acquireStart();
       }
-
       // Stop acquisition
-      if (!value && acquiring)
-      {
+      if (!value && acquiring) {
         acquireStop();
       }
     }
@@ -544,8 +558,11 @@ asynStatus Dexela::writeInt32(asynUser *pasynUser, epicsInt32 value)
     else if (function == DEX_SoftwareTrigger) {
       pDetector_->SoftwareTrigger();
     }
-    else if (function == ADTriggerMode) {
-      pDetector_->SetTriggerSource((ExposureTriggerSource)value);
+    else if (function == DEX_LoadOffsetFile) {
+      loadOffsetFile();
+    }
+    else if (function == DEX_SaveOffsetFile) {
+      saveOffsetFile();
     }
     else if (function == DEX_LoadGainFile) {
       loadGainFile();
@@ -628,11 +645,15 @@ asynStatus Dexela::writeFloat64(asynUser *pasynUser, epicsFloat64 value)
 }
 
 
-/** Called when asyn clients call pasynFloat64->write().
-  * This function performs actions for some parameters.
-  * For all parameters it sets the value in the parameter library and calls any registered callbacks.
+//_____________________________________________________________________________________________
+/** Called when asyn clients call pasynEnum->read().
+  * Sets the enum values and strings for DEX_BinningMode, DEX_FullWellMode, and ADTriggerMode
   * \param[in] pasynUser pasynUser structure that encodes the reason and address.
-  * \param[in] value Value to write. */
+  * \param[in] strings Array of string pointers. 
+  * \param[in] values Array of values 
+  * \param[in] severities Array of severities 
+  * \param[in] nElements Size of value array 
+  * \param[out] nIn Number of elements actually returned */
 asynStatus Dexela::readEnum(asynUser *pasynUser, char *strings[], int values[], int severities[], 
                             size_t nElements, size_t *nIn)
 {
@@ -666,14 +687,12 @@ asynStatus Dexela::readEnum(asynUser *pasynUser, char *strings[], int values[], 
   }
   else if (function == ADTriggerMode) {
     for (i=0; ((i<MAX_TRIGGERS) && (i<(int)nElements)); i++) {
-      exists = pDetector_->QueryTriggerSource((ExposureTriggerSource)triggerEnums[i].value);
-      if (exists == 1) {
-        if (strings[j]) free(strings[j]);
-        strings[j] = epicsStrDup(triggerEnums[i].string);
-        values[j] = triggerEnums[i].value;
-        severities[j] = 0;
-        j++;
-      }
+      // We assume the 3 detector trigger modes all are supported
+      if (strings[j]) free(strings[j]);
+      strings[j] = epicsStrDup(triggerEnums[i].string);
+      values[j] = triggerEnums[i].value;
+      severities[j] = 0;
+      j++;
     }
   }
   else {
@@ -690,35 +709,79 @@ asynStatus Dexela::readEnum(asynUser *pasynUser, char *strings[], int values[], 
 /** Starts acquisition */
 void Dexela::acquireStart(void)
 {
-  int     imageMode;
-  int     numImages;
-  int     status = asynSuccess;
+  int imageMode;
+  int numImages;
+  int triggerMode;
+  double acquireTime;
+  double acquirePeriod;
+  double gap;
+  double readoutTime;
+  int status = asynSuccess;
   static const char *functionName = "acquireStart";
 
   try {
-    //get some information
-    getIntegerParam(ADImageMode, &imageMode);
-    getIntegerParam(ADNumImages, &numImages);
-    setIntegerParam(ADFrameType, ADFrameNormal);
+    getIntegerParam(ADImageMode,     &imageMode);
+    getIntegerParam(ADNumImages,     &numImages);
+    getIntegerParam(ADTriggerMode,   &triggerMode);
+    getDoubleParam (ADAcquireTime,   &acquireTime);
+    getDoubleParam (ADAcquirePeriod, &acquirePeriod);
 
+    setIntegerParam(ADFrameType, ADFrameNormal);
     setIntegerParam(ADNumImagesCounter, 0);
     setIntegerParam(ADStatus, ADStatusAcquire);
 
+    switch (triggerMode) {
+      case DEXInternalFreeRun:
+        pDetector_->SetTriggerSource(Internal_Software);
+        pDetector_->SetExposureMode(Sequence_Exposure);
+        pDetector_->ToggleGenerator(true);      
+        break;
+        
+      case DEXInternalFixedRate:
+        readoutTime = pDetector_->GetReadOutTime() / 1000.;
+        gap = acquirePeriod - acquireTime;
+        if (gap < readoutTime) gap = readoutTime;
+        if (gap < 0.) gap = 0;
+        setDoubleParam(ADAcquirePeriod, readoutTime + gap);
+        pDetector_->SetGapTime((float)(gap*1000.));
+        pDetector_->SetTriggerSource(Internal_Software);
+        pDetector_->SetExposureMode(Frame_Rate_exposure);
+        pDetector_->ToggleGenerator(true);      
+        break;
+        
+      case DEXInternalSoftware:
+        pDetector_->SetTriggerSource(Internal_Software);
+        pDetector_->SetExposureMode(Sequence_Exposure);
+        pDetector_->ToggleGenerator(false);            
+        break;
+        
+      case DEXExternalNegEdge:
+        pDetector_->SetTriggerSource(Ext_neg_edge_trig);
+        pDetector_->SetExposureMode(Sequence_Exposure);
+        pDetector_->ToggleGenerator(false);            
+        break;
+        
+      case DEXExternalBulb:
+        pDetector_->SetTriggerSource(Ext_Duration_Trig);
+        pDetector_->SetExposureMode(Sequence_Exposure);
+        pDetector_->ToggleGenerator(false);            
+        break;
+        
+    }
     setShutter(ADShutterOpen);
     switch (imageMode) {
-      case ADImageContinuous:
-        pDetector_->SetExposureMode(Sequence_Exposure);
-        pDetector_->SetNumOfExposures(numImages);
-        pDetector_->GoLiveSeq();
-        pDetector_->ToggleGenerator(true);
-        break;
       case ADImageSingle:
-        numImages = 1;
+        pDetector_->Snap(snapBuffer_, (int)((acquireTime + 5.)*1000.));
+        snapBuffer_++;
+        if (snapBuffer_ >= numBuffers_) snapBuffer_ = 0;
+        break;
+
       case ADImageMultiple:
-        pDetector_->SetExposureMode(Sequence_Exposure);
-        pDetector_->SetNumOfExposures(numImages);
         pDetector_->GoLiveSeq();
-        pDetector_->ToggleGenerator(true);
+        break;
+
+      case ADImageContinuous:
+        pDetector_->GoLiveSeq();
         break;
     }
   } catch (DexelaException &e) {
@@ -735,8 +798,6 @@ void Dexela::acquireStop(void)
   
   try {
     setShutter(ADShutterClosed);
-    pDetector_->ToggleGenerator(false);
-printf("%s::%s calling GoUnLive()\n", driverName, functionName);
     pDetector_->GoUnLive();
   } catch (DexelaException &e) {
     reportError(functionName, e);
@@ -764,10 +825,10 @@ void Dexela::acquireOffsetImage(void)
     // Make sure the shutter is closed
     setShutter(ADShutterClosed);
 
+    pDetector_->SetTriggerSource(Internal_Software);
     pDetector_->SetExposureMode(Sequence_Exposure);
-    pDetector_->SetNumOfExposures(numFrames);
+    pDetector_->ToggleGenerator(true);      
     pDetector_->GoLiveSeq();
-    pDetector_->ToggleGenerator(true);
   } catch (DexelaException &e) {
     reportError(functionName, e);
   }
@@ -793,15 +854,58 @@ void Dexela::acquireGainImage(void)
     // Make sure the shutter is open
     setShutter(ADShutterOpen);
 
+    pDetector_->SetTriggerSource(Internal_Software);
     pDetector_->SetExposureMode(Sequence_Exposure);
-    pDetector_->SetNumOfExposures(numFrames);
+    pDetector_->ToggleGenerator(true);      
     pDetector_->GoLiveSeq();
-    pDetector_->ToggleGenerator(true);
   } catch (DexelaException &e) {
     reportError(functionName, e);
   }
 }
 
+//_____________________________________________________________________________________________
+
+/** Saves an offset file */
+asynStatus Dexela::saveOffsetFile(void)
+{
+  char filePath[256];
+  char fileName[256];
+  static const char *functionName = "saveOffsetFile";
+
+  try {
+    getStringParam(DEX_CorrectionsDirectory, sizeof(filePath), filePath);
+    getStringParam(DEX_OffsetFile, sizeof(fileName), fileName);
+    strcat(filePath, fileName);
+
+    if (offsetImage_.IsEmpty()) return asynError;
+    offsetImage_.WriteImage(filePath);
+  } catch (DexelaException &e) {
+    reportError(functionName, e);
+  }
+  return asynSuccess;
+}
+
+
+//_____________________________________________________________________________________________
+
+/** Loads an offset file */
+asynStatus Dexela::loadOffsetFile (void)
+{
+  char filePath[256];
+  char fileName[256];
+  static const char *functionName = "loadOffsetFile";
+
+  try {
+    getStringParam(DEX_CorrectionsDirectory, sizeof(filePath), filePath);
+    getStringParam(DEX_OffsetFile, sizeof(fileName), fileName);
+    strcat(filePath, fileName);
+
+    offsetImage_.ReadImage(filePath);
+  } catch (DexelaException &e) {
+    reportError(functionName, e);
+  }
+  return asynSuccess;
+}
 //_____________________________________________________________________________________________
 
 /** Saves a gain file */
