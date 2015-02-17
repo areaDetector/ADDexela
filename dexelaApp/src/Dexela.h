@@ -26,6 +26,10 @@
 #define DEX_CurrentOffsetFrameString         "DEX_CURRENT_OFFSET_FRAME"
 #define DEX_UseOffsetString                  "DEX_USE_OFFSET"
 #define DEX_OffsetAvailableString            "DEX_OFFSET_AVAILABLE"
+#define DEX_OffsetFileString                 "DEX_OFFSET_FILE"
+#define DEX_LoadOffsetFileString             "DEX_LOAD_OFFSET_FILE"
+#define DEX_SaveOffsetFileString             "DEX_SAVE_OFFSET_FILE"
+#define DEX_OffsetConstantString             "DEX_OFFSET_CONSTANT"
 #define DEX_AcquireGainString                "DEX_ACQUIRE_GAIN"
 #define DEX_NumGainFramesString              "DEX_NUM_GAIN_FRAMES"
 #define DEX_CurrentGainFrameString           "DEX_CURRENT_GAIN_FRAME"
@@ -74,6 +78,10 @@ protected:
   int DEX_CurrentOffsetFrame;
   int DEX_UseOffset;
   int DEX_OffsetAvailable;
+  int DEX_OffsetFile;
+  int DEX_LoadOffsetFile;
+  int DEX_SaveOffsetFile;
+  int DEX_OffsetConstant;
   int DEX_AcquireGain;
   int DEX_NumGainFrames;
   int DEX_CurrentGainFrame;
@@ -103,6 +111,8 @@ private:
   int            modelNumber_;
   int            serialNumber_;
   bins           binningMode_;
+  int            snapBuffer_;
+  int            numBuffers_;
 
   void reportSensors(FILE *fp, int details);
   void reportError(const char *functionName, DexelaException &e);
@@ -110,6 +120,8 @@ private:
   void acquireStop(void);
   void acquireOffsetImage(void);
   void acquireGainImage(void);
+  asynStatus loadOffsetFile(void);
+  asynStatus saveOffsetFile(void);
   asynStatus loadGainFile(void);
   asynStatus saveGainFile(void);
   asynStatus loadDefectMapFile();
