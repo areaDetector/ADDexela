@@ -8,7 +8,7 @@ display {
 		x=101
 		y=89
 		width=1070
-		height=580
+		height=590
 	}
 	clr=14
 	bclr=4
@@ -124,8 +124,8 @@ text {
 }
 composite {
 	object {
-		x=360
-		y=515
+		x=5
+		y=525
 		width=350
 		height=60
 	}
@@ -249,49 +249,6 @@ text {
 	textix="Collect"
 	align="horiz. centered"
 }
-text {
-	object {
-		x=761
-		y=229
-		width=130
-		height=20
-	}
-	"basic attribute" {
-		clr=14
-	}
-	textix="Exposure time"
-	align="horiz. right"
-}
-"text entry" {
-	object {
-		x=900
-		y=229
-		width=59
-		height=20
-	}
-	control {
-		chan="$(P)$(R)AcquireTime"
-		clr=14
-		bclr=51
-	}
-	limits {
-	}
-}
-"text update" {
-	object {
-		x=966
-		y=230
-		width=79
-		height=18
-	}
-	monitor {
-		chan="$(P)$(R)AcquireTime_RBV"
-		clr=54
-		bclr=4
-	}
-	limits {
-	}
-}
 rectangle {
 	object {
 		x=475
@@ -321,7 +278,7 @@ rectangle {
 		x=360
 		y=35
 		width=350
-		height=475
+		height=550
 	}
 	"basic attribute" {
 		clr=14
@@ -386,94 +343,11 @@ rectangle {
 		x=373
 		y=120
 		width=325
-		height=110
+		height=185
 	}
 	"basic attribute" {
 		clr=14
 		fill="outline"
-	}
-}
-"text update" {
-	object {
-		x=483
-		y=201
-		width=110
-		height=18
-	}
-	monitor {
-		chan="$(P)$(R)DEXOffsetAvailable"
-		clr=54
-		bclr=2
-	}
-	clrmod="alarm"
-	limits {
-	}
-}
-menu {
-	object {
-		x=598
-		y=201
-		width=90
-		height=19
-	}
-	control {
-		chan="$(P)$(R)DEXUseOffset"
-		clr=14
-		bclr=51
-	}
-}
-text {
-	object {
-		x=378
-		y=200
-		width=100
-		height=20
-	}
-	"basic attribute" {
-		clr=14
-	}
-	textix="Correction"
-}
-composite {
-	object {
-		x=378
-		y=175
-		width=305
-		height=20
-	}
-	"composite name"=""
-	children {
-		"text update" {
-			object {
-				x=583
-				y=176
-				width=100
-				height=18
-			}
-			monitor {
-				chan="$(P)$(R)DEXAcquireOffset"
-				clr=54
-				bclr=2
-			}
-			clrmod="alarm"
-			limits {
-			}
-		}
-		"message button" {
-			object {
-				x=378
-				y=175
-				width=200
-				height=20
-			}
-			control {
-				chan="$(P)$(R)DEXAcquireOffset"
-				clr=14
-				bclr=51
-			}
-			label="Acquire Offset Correction"
-			press_msg="1"
-		}
 	}
 }
 composite {
@@ -527,381 +401,6 @@ composite {
 			limits {
 			}
 		}
-	}
-}
-text {
-	object {
-		x=515
-		y=240
-		width=40
-		height=20
-	}
-	"basic attribute" {
-		clr=14
-	}
-	textix="Gain Correction"
-	align="horiz. centered"
-}
-rectangle {
-	object {
-		x=373
-		y=235
-		width=325
-		height=160
-	}
-	"basic attribute" {
-		clr=14
-		fill="outline"
-	}
-}
-text {
-	object {
-		x=378
-		y=315
-		width=100
-		height=20
-	}
-	"basic attribute" {
-		clr=14
-	}
-	textix="Correction"
-}
-"text update" {
-	object {
-		x=483
-		y=316
-		width=110
-		height=18
-	}
-	monitor {
-		chan="$(P)$(R)DEXGainAvailable"
-		clr=54
-		bclr=2
-	}
-	clrmod="alarm"
-	limits {
-	}
-}
-menu {
-	object {
-		x=598
-		y=316
-		width=90
-		height=19
-	}
-	control {
-		chan="$(P)$(R)DEXUseGain"
-		clr=14
-		bclr=51
-	}
-}
-composite {
-	object {
-		x=378
-		y=290
-		width=305
-		height=20
-	}
-	"composite name"=""
-	children {
-		"message button" {
-			object {
-				x=378
-				y=290
-				width=200
-				height=20
-			}
-			control {
-				chan="$(P)$(R)DEXAcquireGain"
-				clr=14
-				bclr=51
-			}
-			label="Acquire Gain Correction"
-			press_msg="1"
-		}
-		"text update" {
-			object {
-				x=583
-				y=291
-				width=100
-				height=18
-			}
-			monitor {
-				chan="$(P)$(R)DEXAcquireGain"
-				clr=54
-				bclr=2
-			}
-			clrmod="alarm"
-			limits {
-			}
-		}
-	}
-}
-composite {
-	object {
-		x=418
-		y=265
-		width=270
-		height=20
-	}
-	"composite name"=""
-	children {
-		text {
-			object {
-				x=418
-				y=265
-				width=130
-				height=20
-			}
-			"basic attribute" {
-				clr=14
-			}
-			textix="# Gain Frames"
-		}
-		"text entry" {
-			object {
-				x=563
-				y=265
-				width=60
-				height=20
-			}
-			control {
-				chan="$(P)$(R)DEXNumGainFrames"
-				clr=14
-				bclr=51
-			}
-			limits {
-			}
-		}
-		"text update" {
-			object {
-				x=628
-				y=266
-				width=60
-				height=18
-			}
-			monitor {
-				chan="$(P)$(R)DEXCurrentGainFrame"
-				clr=54
-				bclr=4
-			}
-			limits {
-			}
-		}
-	}
-}
-"text entry" {
-	object {
-		x=378
-		y=340
-		width=315
-		height=20
-	}
-	control {
-		chan="$(P)$(R)DEXGainFile"
-		clr=14
-		bclr=51
-	}
-	format="string"
-	limits {
-	}
-}
-"message button" {
-	object {
-		x=405
-		y=370
-		width=120
-		height=20
-	}
-	control {
-		chan="$(P)$(R)DEXLoadGainFile"
-		clr=14
-		bclr=51
-	}
-	label="Load Gain File"
-	press_msg="1"
-}
-"message button" {
-	object {
-		x=545
-		y=370
-		width=120
-		height=20
-	}
-	control {
-		chan="$(P)$(R)DEXSaveGainFile"
-		clr=14
-		bclr=51
-	}
-	label="Save Gain File"
-	press_msg="1"
-}
-text {
-	object {
-		x=465
-		y=405
-		width=140
-		height=20
-	}
-	"basic attribute" {
-		clr=14
-	}
-	textix="Defect Map File"
-	align="horiz. centered"
-}
-rectangle {
-	object {
-		x=373
-		y=400
-		width=325
-		height=105
-	}
-	"basic attribute" {
-		clr=14
-		fill="outline"
-	}
-}
-"text entry" {
-	object {
-		x=378
-		y=430
-		width=315
-		height=20
-	}
-	control {
-		chan="$(P)$(R)DEXDefectMapFile"
-		clr=14
-		bclr=51
-	}
-	format="string"
-	limits {
-	}
-}
-text {
-	object {
-		x=378
-		y=455
-		width=100
-		height=20
-	}
-	"basic attribute" {
-		clr=14
-	}
-	textix="Correction"
-}
-menu {
-	object {
-		x=598
-		y=456
-		width=90
-		height=19
-	}
-	control {
-		chan="$(P)$(R)DEXUseDefectMap"
-		clr=14
-		bclr=51
-	}
-}
-"text update" {
-	object {
-		x=483
-		y=456
-		width=110
-		height=18
-	}
-	monitor {
-		chan="$(P)$(R)DEXDefectMapAvailable"
-		clr=54
-		bclr=2
-	}
-	clrmod="alarm"
-	limits {
-	}
-}
-"message button" {
-	object {
-		x=460
-		y=480
-		width=150
-		height=20
-	}
-	control {
-		chan="$(P)$(R)DEXLoadDefectMap"
-		clr=14
-		bclr=51
-	}
-	label="Load Bad Pixel File"
-	press_msg="1"
-}
-text {
-	object {
-		x=731
-		y=279
-		width=160
-		height=20
-	}
-	"basic attribute" {
-		clr=14
-	}
-	textix="# Images complete"
-	align="horiz. right"
-}
-"text update" {
-	object {
-		x=966
-		y=280
-		width=67
-		height=18
-	}
-	monitor {
-		chan="$(P)$(R)NumImagesCounter_RBV"
-		clr=54
-		bclr=4
-	}
-	limits {
-	}
-}
-text {
-	object {
-		x=811
-		y=254
-		width=80
-		height=20
-	}
-	"basic attribute" {
-		clr=14
-	}
-	textix="# Images"
-	align="horiz. right"
-}
-"text entry" {
-	object {
-		x=900
-		y=254
-		width=59
-		height=20
-	}
-	control {
-		chan="$(P)$(R)NumImages"
-		clr=14
-		bclr=51
-	}
-	limits {
-	}
-}
-"text update" {
-	object {
-		x=966
-		y=255
-		width=79
-		height=18
-	}
-	monitor {
-		chan="$(P)$(R)NumImages_RBV"
-		clr=54
-		bclr=4
-	}
-	limits {
 	}
 }
 composite {
@@ -1513,6 +1012,682 @@ text {
 		bclr=4
 	}
 	align="horiz. centered"
+	limits {
+	}
+}
+composite {
+	object {
+		x=731
+		y=279
+		width=314
+		height=45
+	}
+	"composite name"=""
+	children {
+		text {
+			object {
+				x=731
+				y=304
+				width=160
+				height=20
+			}
+			"basic attribute" {
+				clr=14
+			}
+			textix="# Images complete"
+			align="horiz. right"
+		}
+		"text update" {
+			object {
+				x=966
+				y=305
+				width=67
+				height=18
+			}
+			monitor {
+				chan="$(P)$(R)NumImagesCounter_RBV"
+				clr=54
+				bclr=4
+			}
+			limits {
+			}
+		}
+		text {
+			object {
+				x=811
+				y=279
+				width=80
+				height=20
+			}
+			"basic attribute" {
+				clr=14
+			}
+			textix="# Images"
+			align="horiz. right"
+		}
+		"text entry" {
+			object {
+				x=900
+				y=279
+				width=59
+				height=20
+			}
+			control {
+				chan="$(P)$(R)NumImages"
+				clr=14
+				bclr=51
+			}
+			limits {
+			}
+		}
+		"text update" {
+			object {
+				x=966
+				y=280
+				width=79
+				height=18
+			}
+			monitor {
+				chan="$(P)$(R)NumImages_RBV"
+				clr=54
+				bclr=4
+			}
+			limits {
+			}
+		}
+	}
+}
+composite {
+	object {
+		x=761
+		y=229
+		width=284
+		height=20
+	}
+	"composite name"=""
+	children {
+		text {
+			object {
+				x=761
+				y=229
+				width=130
+				height=20
+			}
+			"basic attribute" {
+				clr=14
+			}
+			textix="Exposure time"
+			align="horiz. right"
+		}
+		"text entry" {
+			object {
+				x=900
+				y=229
+				width=59
+				height=20
+			}
+			control {
+				chan="$(P)$(R)AcquireTime"
+				clr=14
+				bclr=51
+			}
+			limits {
+			}
+		}
+		"text update" {
+			object {
+				x=966
+				y=230
+				width=79
+				height=18
+			}
+			monitor {
+				chan="$(P)$(R)AcquireTime_RBV"
+				clr=54
+				bclr=4
+			}
+			limits {
+			}
+		}
+	}
+}
+text {
+	object {
+		x=761
+		y=254
+		width=130
+		height=20
+	}
+	"basic attribute" {
+		clr=14
+	}
+	textix="Acquire period"
+	align="horiz. right"
+}
+"text entry" {
+	object {
+		x=900
+		y=254
+		width=59
+		height=20
+	}
+	control {
+		chan="$(P)$(R)AcquirePeriod"
+		clr=14
+		bclr=51
+	}
+	limits {
+	}
+}
+"text update" {
+	object {
+		x=966
+		y=255
+		width=79
+		height=18
+	}
+	monitor {
+		chan="$(P)$(R)AcquirePeriod_RBV"
+		clr=54
+		bclr=4
+	}
+	limits {
+	}
+}
+composite {
+	object {
+		x=373
+		y=310
+		width=325
+		height=270
+	}
+	"composite name"=""
+	children {
+		text {
+			object {
+				x=515
+				y=315
+				width=40
+				height=20
+			}
+			"basic attribute" {
+				clr=14
+			}
+			textix="Gain Correction"
+			align="horiz. centered"
+		}
+		rectangle {
+			object {
+				x=373
+				y=310
+				width=325
+				height=160
+			}
+			"basic attribute" {
+				clr=14
+				fill="outline"
+			}
+		}
+		text {
+			object {
+				x=378
+				y=390
+				width=100
+				height=20
+			}
+			"basic attribute" {
+				clr=14
+			}
+			textix="Correction"
+		}
+		"text update" {
+			object {
+				x=483
+				y=391
+				width=110
+				height=18
+			}
+			monitor {
+				chan="$(P)$(R)DEXGainAvailable"
+				clr=54
+				bclr=2
+			}
+			clrmod="alarm"
+			limits {
+			}
+		}
+		menu {
+			object {
+				x=598
+				y=391
+				width=90
+				height=19
+			}
+			control {
+				chan="$(P)$(R)DEXUseGain"
+				clr=14
+				bclr=51
+			}
+		}
+		composite {
+			object {
+				x=378
+				y=365
+				width=305
+				height=20
+			}
+			"composite name"=""
+			children {
+				"message button" {
+					object {
+						x=378
+						y=365
+						width=200
+						height=20
+					}
+					control {
+						chan="$(P)$(R)DEXAcquireGain"
+						clr=14
+						bclr=51
+					}
+					label="Acquire Gain Correction"
+					press_msg="1"
+				}
+				"text update" {
+					object {
+						x=583
+						y=366
+						width=100
+						height=18
+					}
+					monitor {
+						chan="$(P)$(R)DEXAcquireGain"
+						clr=54
+						bclr=2
+					}
+					clrmod="alarm"
+					limits {
+					}
+				}
+			}
+		}
+		composite {
+			object {
+				x=418
+				y=340
+				width=270
+				height=20
+			}
+			"composite name"=""
+			children {
+				text {
+					object {
+						x=418
+						y=340
+						width=130
+						height=20
+					}
+					"basic attribute" {
+						clr=14
+					}
+					textix="# Gain Frames"
+				}
+				"text entry" {
+					object {
+						x=563
+						y=340
+						width=60
+						height=20
+					}
+					control {
+						chan="$(P)$(R)DEXNumGainFrames"
+						clr=14
+						bclr=51
+					}
+					limits {
+					}
+				}
+				"text update" {
+					object {
+						x=628
+						y=341
+						width=60
+						height=18
+					}
+					monitor {
+						chan="$(P)$(R)DEXCurrentGainFrame"
+						clr=54
+						bclr=4
+					}
+					limits {
+					}
+				}
+			}
+		}
+		text {
+			object {
+				x=465
+				y=480
+				width=140
+				height=20
+			}
+			"basic attribute" {
+				clr=14
+			}
+			textix="Defect Map File"
+			align="horiz. centered"
+		}
+		rectangle {
+			object {
+				x=373
+				y=475
+				width=325
+				height=105
+			}
+			"basic attribute" {
+				clr=14
+				fill="outline"
+			}
+		}
+		"text entry" {
+			object {
+				x=378
+				y=505
+				width=315
+				height=20
+			}
+			control {
+				chan="$(P)$(R)DEXDefectMapFile"
+				clr=14
+				bclr=51
+			}
+			format="string"
+			limits {
+			}
+		}
+		text {
+			object {
+				x=378
+				y=530
+				width=100
+				height=20
+			}
+			"basic attribute" {
+				clr=14
+			}
+			textix="Correction"
+		}
+		menu {
+			object {
+				x=598
+				y=531
+				width=90
+				height=19
+			}
+			control {
+				chan="$(P)$(R)DEXUseDefectMap"
+				clr=14
+				bclr=51
+			}
+		}
+		"text update" {
+			object {
+				x=483
+				y=531
+				width=110
+				height=18
+			}
+			monitor {
+				chan="$(P)$(R)DEXDefectMapAvailable"
+				clr=54
+				bclr=2
+			}
+			clrmod="alarm"
+			limits {
+			}
+		}
+		"message button" {
+			object {
+				x=460
+				y=555
+				width=150
+				height=20
+			}
+			control {
+				chan="$(P)$(R)DEXLoadDefectMap"
+				clr=14
+				bclr=51
+			}
+			label="Load Bad Pixel File"
+			press_msg="1"
+		}
+		composite {
+			object {
+				x=378
+				y=415
+				width=315
+				height=50
+			}
+			"composite name"=""
+			children {
+				"text entry" {
+					object {
+						x=378
+						y=415
+						width=315
+						height=20
+					}
+					control {
+						chan="$(P)$(R)DEXGainFile"
+						clr=14
+						bclr=51
+					}
+					format="string"
+					limits {
+					}
+				}
+				"message button" {
+					object {
+						x=405
+						y=445
+						width=120
+						height=20
+					}
+					control {
+						chan="$(P)$(R)DEXLoadGainFile"
+						clr=14
+						bclr=51
+					}
+					label="Load Gain File"
+					press_msg="1"
+				}
+				"message button" {
+					object {
+						x=545
+						y=445
+						width=120
+						height=20
+					}
+					control {
+						chan="$(P)$(R)DEXSaveGainFile"
+						clr=14
+						bclr=51
+					}
+					label="Save Gain File"
+					press_msg="1"
+				}
+			}
+		}
+	}
+}
+"text update" {
+	object {
+		x=483
+		y=226
+		width=110
+		height=18
+	}
+	monitor {
+		chan="$(P)$(R)DEXOffsetAvailable"
+		clr=54
+		bclr=2
+	}
+	clrmod="alarm"
+	limits {
+	}
+}
+menu {
+	object {
+		x=598
+		y=226
+		width=90
+		height=19
+	}
+	control {
+		chan="$(P)$(R)DEXUseOffset"
+		clr=14
+		bclr=51
+	}
+}
+text {
+	object {
+		x=378
+		y=225
+		width=100
+		height=20
+	}
+	"basic attribute" {
+		clr=14
+	}
+	textix="Correction"
+}
+composite {
+	object {
+		x=378
+		y=200
+		width=305
+		height=20
+	}
+	"composite name"=""
+	children {
+		"text update" {
+			object {
+				x=583
+				y=201
+				width=100
+				height=18
+			}
+			monitor {
+				chan="$(P)$(R)DEXAcquireOffset"
+				clr=54
+				bclr=2
+			}
+			clrmod="alarm"
+			limits {
+			}
+		}
+		"message button" {
+			object {
+				x=378
+				y=200
+				width=200
+				height=20
+			}
+			control {
+				chan="$(P)$(R)DEXAcquireOffset"
+				clr=14
+				bclr=51
+			}
+			label="Acquire Offset Correction"
+			press_msg="1"
+		}
+	}
+}
+"text entry" {
+	object {
+		x=378
+		y=250
+		width=315
+		height=20
+	}
+	control {
+		chan="$(P)$(R)DEXOffsetFile"
+		clr=14
+		bclr=51
+	}
+	format="string"
+	limits {
+	}
+}
+"message button" {
+	object {
+		x=405
+		y=280
+		width=120
+		height=20
+	}
+	control {
+		chan="$(P)$(R)DEXLoadOffsetFile"
+		clr=14
+		bclr=51
+	}
+	label="Load Offset File"
+	press_msg="1"
+}
+"message button" {
+	object {
+		x=545
+		y=280
+		width=120
+		height=20
+	}
+	control {
+		chan="$(P)$(R)DEXSaveOffsetFile"
+		clr=14
+		bclr=51
+	}
+	label="Save Offset File"
+	press_msg="1"
+}
+text {
+	object {
+		x=403
+		y=175
+		width=150
+		height=20
+	}
+	"basic attribute" {
+		clr=14
+	}
+	textix="Offset constant"
+}
+"text entry" {
+	object {
+		x=563
+		y=175
+		width=60
+		height=20
+	}
+	control {
+		chan="$(P)$(R)DEXOffsetConstant"
+		clr=14
+		bclr=51
+	}
+	limits {
+	}
+}
+"text update" {
+	object {
+		x=628
+		y=176
+		width=60
+		height=18
+	}
+	monitor {
+		chan="$(P)$(R)DEXOffsetConstant_RBV"
+		clr=54
+		bclr=4
+	}
 	limits {
 	}
 }
