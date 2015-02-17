@@ -2,6 +2,8 @@ $(P)$(R)DEXBinningMode
 $(P)$(R)DEXCorrectionsDir
 $(P)$(R)DEXNumOffsetFrames
 $(P)$(R)DEXUseOffset
+$(P)$(R)DEXOffsetFile
+$(P)$(R)DEXOffsetConstant
 $(P)$(R)DEXNumGainFrames
 $(P)$(R)DEXUseGain
 $(P)$(R)DEXGainFile
