@@ -19,7 +19,7 @@ files respectively, in the configure/ directory of the appropriate release of th
 Release Notes
 =============
 
-R2-0 (February XXX, 2015)
+R2-0 (March 30, 2015)
 ----
 * Initial release
 
