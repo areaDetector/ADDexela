@@ -4,7 +4,7 @@ include $(TOP)/configure/CONFIG
 DIRS := $(DIRS) configure
 DIRS := $(DIRS) dexelaSupport
 DIRS := $(DIRS) dexelaApp
-perkinElmerApp_DEPEND_DIRS += dexelaSupport
+dexelaApp_DEPEND_DIRS += dexelaSupport
 ifeq ($(BUILD_IOCS), YES)
 DIRS := $(DIRS) $(filter-out $(DIRS), $(wildcard iocs))
 iocs_DEPEND_DIRS += dexelaApp
