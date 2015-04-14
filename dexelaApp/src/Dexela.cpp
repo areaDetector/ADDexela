@@ -9,6 +9,9 @@
  *
  * Current author: Mark Rivers
  *
+ * Minor Edits: ImageMode to determine use of PulseGen, Turn off pulse gen in acquireStop() - Zachary Brown 04/14/15.
+ *				
+ *
  */
 
 #include <stdlib.h>
@@ -442,8 +445,7 @@ void Dexela::newFrameCallback(int frameCounter, int bufferNumber)
         }
 
         /** Correct for dead pixels as necessary */
-
-        pData = dataImage.GetDataPointerToPlane();
+	    pData = dataImage.GetDataPointerToPlane();
         break;
     }
 
@@ -730,60 +732,79 @@ void Dexela::acquireStart(void)
     setIntegerParam(ADNumImagesCounter, 0);
     setIntegerParam(ADStatus, ADStatusAcquire);
 
+	/** Trigger & Exposure Modes
+	  * Internal_Software: will trigger from SoftwareTrigger() or Internal Pulse Gen
+	  * Ext_neg_edge_trig: trigger int. timed sequence from input pulse
+	  * Ext_Duration_Trig: sequence with timing from input sync signal.
+	  *
+	  * Sequence_Exposure: readout immediately after exposure
+	  * Frame_Rate: readout after adj. delay from AcqPeriod PV */
+
     switch (triggerMode) {
+
       case DEXInternalFreeRun:
         pDetector_->SetTriggerSource(Internal_Software);
-        pDetector_->SetExposureMode(Sequence_Exposure);
-        pDetector_->ToggleGenerator(true);      
+        pDetector_->SetExposureMode(Sequence_Exposure);   
         break;
-        
+      
       case DEXInternalFixedRate:
         readoutTime = pDetector_->GetReadOutTime() / 1000.;
-        gap = acquirePeriod - acquireTime;
+		gap = acquirePeriod - acquireTime;
         if (gap < readoutTime) gap = readoutTime;
         if (gap < 0.) gap = 0;
-        setDoubleParam(ADAcquirePeriod, readoutTime + gap);
-        pDetector_->SetGapTime((float)(gap*1000.));
-        pDetector_->SetTriggerSource(Internal_Software);
-        pDetector_->SetExposureMode(Frame_Rate_exposure);
-        pDetector_->ToggleGenerator(true);      
+		pDetector_->SetTriggerSource(Internal_Software);
+		pDetector_->SetExposureMode(Frame_Rate_exposure);
+		pDetector_->SetGapTime((float)(gap*1000.));  
         break;
         
       case DEXInternalSoftware:
         pDetector_->SetTriggerSource(Internal_Software);
-        pDetector_->SetExposureMode(Sequence_Exposure);
-        pDetector_->ToggleGenerator(false);            
+        pDetector_->SetExposureMode(Sequence_Exposure);        
         break;
         
       case DEXExternalNegEdge:
         pDetector_->SetTriggerSource(Ext_neg_edge_trig);
-        pDetector_->SetExposureMode(Sequence_Exposure);
-        pDetector_->ToggleGenerator(false);            
+        pDetector_->SetExposureMode(Frame_Rate_exposure);          
         break;
         
       case DEXExternalBulb:
         pDetector_->SetTriggerSource(Ext_Duration_Trig);
-        pDetector_->SetExposureMode(Sequence_Exposure);
-        pDetector_->ToggleGenerator(false);            
+        pDetector_->SetExposureMode(Sequence_Exposure);       
         break;
         
     }
     setShutter(ADShutterOpen);
+
+	/** Acquire Modes
+	  * Single: use Snap(), internal software trigger (disable Pulse Gen)
+	  * Multiple: use Live View, internal software trigger (disable Pulse Gen)
+	  * Continuous: use Live View, ExpTime PV for exposure, Pulse Gen for image rate */
     switch (imageMode) {
+
       case ADImageSingle:
-        pDetector_->Snap(snapBuffer_, (int)((acquireTime + 5.)*1000.));
-        snapBuffer_++;
+		pDetector_->ToggleGenerator(false);
+		pDetector_->DisablePulseGenerator();
+		pDetector_->SetExposureMode(Expose_and_read);
+		pDetector_->Snap(snapBuffer_, (int)((acquireTime)*1000.));
+
+		snapBuffer_++;
         if (snapBuffer_ >= numBuffers_) snapBuffer_ = 0;
         break;
 
       case ADImageMultiple:
+		pDetector_->ToggleGenerator(false);
+		pDetector_->DisablePulseGenerator();
         pDetector_->GoLiveSeq();
+		if (triggerMode != DEXInternalSoftware) pDetector_->SoftwareTrigger();
         break;
 
       case ADImageContinuous:
+		pDetector_->EnablePulseGenerator(1 / (acquirePeriod));
+		pDetector_->ToggleGenerator(true);
         pDetector_->GoLiveSeq();
         break;
     }
+
   } catch (DexelaException &e) {
     reportError(functionName, e);
   }
@@ -798,7 +819,9 @@ void Dexela::acquireStop(void)
   
   try {
     setShutter(ADShutterClosed);
-    pDetector_->GoUnLive();
+	setIntegerParam(ADStatus, ADStatusIdle);
+	if (pDetector_->IsLive()) pDetector_->GoUnLive();
+	pDetector_->ToggleGenerator(false);
   } catch (DexelaException &e) {
     reportError(functionName, e);
   }
