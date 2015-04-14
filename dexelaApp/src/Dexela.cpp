@@ -792,6 +792,7 @@ void Dexela::acquireStart(void)
         break;
 
       case ADImageMultiple:
+		pDetector_->SetNumOfExposures(numImages);
 		pDetector_->ToggleGenerator(false);
 		pDetector_->DisablePulseGenerator();
         pDetector_->GoLiveSeq();
@@ -799,6 +800,7 @@ void Dexela::acquireStart(void)
         break;
 
       case ADImageContinuous:
+		pDetector_->SetNumOfExposures(1.);
 		pDetector_->EnablePulseGenerator(1 / (acquirePeriod));
 		pDetector_->ToggleGenerator(true);
         pDetector_->GoLiveSeq();
