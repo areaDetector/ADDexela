@@ -764,9 +764,14 @@ void Dexela::acquireStart(void)
         pDetector_->SetExposureMode(Sequence_Exposure);        
         break;
         
-      case DEXExternalNegEdge:
+      case DEXExternalEdgeSingle:
         pDetector_->SetTriggerSource(Ext_neg_edge_trig);
         pDetector_->SetExposureMode(Frame_Rate_exposure);          
+        break;
+        
+      case DEXExternalEdgeMulti:
+        pDetector_->SetTriggerSource(Ext_neg_edge_trig);
+        pDetector_->SetExposureMode(Sequence_Exposure);          
         break;
         
       case DEXExternalBulb:
@@ -803,7 +808,7 @@ void Dexela::acquireStart(void)
 
       case ADImageContinuous:
         pDetector_->SetNumOfExposures(1);
-        pDetector_->EnablePulseGenerator(1 / (acquireTime + gap));
+        pDetector_->EnablePulseGenerator(float(1./(acquireTime + gap)));
         pDetector_->ToggleGenerator(true);
         pDetector_->GoLiveSeq();
         break;
