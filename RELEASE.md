@@ -19,7 +19,14 @@ files respectively, in the configure/ directory of the appropriate release of th
 Release Notes
 =============
 
-R2-0 (March 30, 2015)
+R2-0 (June 23, 2015)
+----
+* Fixes from Zachary Brown at Cornell to get image modes and triggers working correctly.
+* Changes for ADCore R2-2.
+* Fixed build system to install boost header files (thanks to Andrew Johnson).
+
+
+R2-0-beta1 (February 16, 2015)
 ----
 * Initial release
 
