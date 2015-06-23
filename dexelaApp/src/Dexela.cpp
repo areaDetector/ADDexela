@@ -62,17 +62,19 @@ typedef enum {
   DEXInternalFreeRun,
   DEXInternalFixedRate,
   DEXInternalSoftware,
-  DEXExternalNegEdge,
+  DEXExternalEdgeSingle,
+  DEXExternalEdgeMulti,
   DEXExternalBulb
 } DEXTriggerMode_t;
 
-#define MAX_TRIGGERS 5
+#define MAX_TRIGGERS 6
 static enumStruct_t triggerEnums[MAX_TRIGGERS]= {
-  {DEXInternalFreeRun,   "Int. Free Run"},
-  {DEXInternalFixedRate, "Int. Fixed Rate"},
-  {DEXInternalSoftware,  "Int. Software"},
-  {DEXExternalNegEdge,   "Ext. neg. edge"},
-  {DEXExternalBulb,      "Ext. Bulb"}
+  {DEXInternalFreeRun,    "Int. Free Run"},
+  {DEXInternalFixedRate,  "Int. Fixed Rate"},
+  {DEXInternalSoftware,   "Int. Software"},
+  {DEXExternalEdgeSingle, "Ext. Edge Single"},
+  {DEXExternalEdgeMulti,  "Ext. Edge Multi"},
+  {DEXExternalBulb,       "Ext. Bulb"}
 };
 
 #define MAX_FULL_WELL 2
@@ -752,9 +754,9 @@ void Dexela::acquireStart(void)
         gap = acquirePeriod - acquireTime;
         if (gap < readoutTime) gap = readoutTime;
         if (gap < 0.) gap = 0;
-          pDetector_->SetTriggerSource(Internal_Software);
-          pDetector_->SetExposureMode(Frame_Rate_exposure);
-          pDetector_->SetGapTime((float)(gap*1000.));  
+        pDetector_->SetTriggerSource(Internal_Software);
+        pDetector_->SetExposureMode(Frame_Rate_exposure);
+        pDetector_->SetGapTime((float)(gap*1000.));  
         break;
         
       case DEXInternalSoftware:
