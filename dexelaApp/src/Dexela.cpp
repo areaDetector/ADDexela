@@ -723,6 +723,9 @@ void Dexela::acquireStart(void)
   int status = asynSuccess;
   static const char *functionName = "acquireStart";
 
+  // Do callbacks so Acquire goes to 1 so user sees acquisition has started
+  callParamCallbacks();
+  
   try {
     getIntegerParam(ADImageMode,     &imageMode);
     getIntegerParam(ADNumImages,     &numImages);
@@ -742,6 +745,9 @@ void Dexela::acquireStart(void)
       * Sequence_Exposure: readout immediately after exposure
       * Frame_Rate: readout after adj. delay from AcqPeriod PV */
 
+    readoutTime = pDetector_->GetReadOutTime() / 1000.;
+printf("Readout time = %f\n", readoutTime);
+    gap = acquirePeriod;
     switch (triggerMode) {
 
       case DEXInternalFreeRun:
@@ -750,12 +756,10 @@ void Dexela::acquireStart(void)
         break;
       
       case DEXInternalFixedRate:
-        readoutTime = pDetector_->GetReadOutTime() / 1000.;
-        gap = acquirePeriod - acquireTime;
         if (gap < readoutTime) gap = readoutTime;
-        if (gap < 0.) gap = 0;
         pDetector_->SetTriggerSource(Internal_Software);
         pDetector_->SetExposureMode(Frame_Rate_exposure);
+printf("gap=%f\n", gap);
         pDetector_->SetGapTime((float)(gap*1000.));  
         break;
         
@@ -792,7 +796,7 @@ void Dexela::acquireStart(void)
         pDetector_->ToggleGenerator(false);
         pDetector_->DisablePulseGenerator();
         pDetector_->SetExposureMode(Expose_and_read);
-        pDetector_->Snap(snapBuffer_, (int)((acquireTime)*1000.));
+        pDetector_->Snap(snapBuffer_, (int)((acquireTime + 1)*1000.));
 
         snapBuffer_++;
         if (snapBuffer_ >= numBuffers_) snapBuffer_ = 0;
