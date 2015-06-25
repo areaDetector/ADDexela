@@ -1,6 +1,6 @@
 
 file {
-	name="/home/epics/devel/areaDetector-2-1/ADDexela/dexelaApp/op/adl/Dexela.adl"
+	name="/home/epics/devel/areaDetector-2-3/ADDexela/dexelaApp/op/adl/Dexela.adl"
 	version=030107
 }
 display {
@@ -323,84 +323,6 @@ rectangle {
 	"basic attribute" {
 		clr=14
 		fill="outline"
-	}
-}
-text {
-	object {
-		x=505
-		y=125
-		width=60
-		height=20
-	}
-	"basic attribute" {
-		clr=14
-	}
-	textix="Offset Correction"
-	align="horiz. centered"
-}
-rectangle {
-	object {
-		x=373
-		y=120
-		width=325
-		height=185
-	}
-	"basic attribute" {
-		clr=14
-		fill="outline"
-	}
-}
-composite {
-	object {
-		x=403
-		y=150
-		width=285
-		height=20
-	}
-	"composite name"=""
-	children {
-		text {
-			object {
-				x=403
-				y=150
-				width=150
-				height=20
-			}
-			"basic attribute" {
-				clr=14
-			}
-			textix="# Offset Frames"
-		}
-		"text entry" {
-			object {
-				x=563
-				y=150
-				width=60
-				height=20
-			}
-			control {
-				chan="$(P)$(R)DEXNumOffsetFrames"
-				clr=14
-				bclr=51
-			}
-			limits {
-			}
-		}
-		"text update" {
-			object {
-				x=628
-				y=151
-				width=60
-				height=18
-			}
-			monitor {
-				chan="$(P)$(R)DEXCurrentOffsetFrame"
-				clr=54
-				bclr=4
-			}
-			limits {
-			}
-		}
 	}
 }
 composite {
@@ -1454,11 +1376,11 @@ composite {
 				height=20
 			}
 			control {
-				chan="$(P)$(R)DEXLoadDefectMap"
+				chan="$(P)$(R)DEXLoadDefectMapFile"
 				clr=14
 				bclr=51
 			}
-			label="Load Bad Pixel File"
+			label="Load Defect Map File"
 			press_msg="1"
 		}
 		composite {
@@ -1516,6 +1438,84 @@ composite {
 					label="Save Gain File"
 					press_msg="1"
 				}
+			}
+		}
+	}
+}
+text {
+	object {
+		x=505
+		y=125
+		width=60
+		height=20
+	}
+	"basic attribute" {
+		clr=14
+	}
+	textix="Offset Correction"
+	align="horiz. centered"
+}
+rectangle {
+	object {
+		x=373
+		y=120
+		width=325
+		height=185
+	}
+	"basic attribute" {
+		clr=14
+		fill="outline"
+	}
+}
+composite {
+	object {
+		x=403
+		y=150
+		width=285
+		height=20
+	}
+	"composite name"=""
+	children {
+		text {
+			object {
+				x=403
+				y=150
+				width=150
+				height=20
+			}
+			"basic attribute" {
+				clr=14
+			}
+			textix="# Offset Frames"
+		}
+		"text entry" {
+			object {
+				x=563
+				y=150
+				width=60
+				height=20
+			}
+			control {
+				chan="$(P)$(R)DEXNumOffsetFrames"
+				clr=14
+				bclr=51
+			}
+			limits {
+			}
+		}
+		"text update" {
+			object {
+				x=628
+				y=151
+				width=60
+				height=18
+			}
+			monitor {
+				chan="$(P)$(R)DEXCurrentOffsetFrame"
+				clr=54
+				bclr=4
+			}
+			limits {
 			}
 		}
 	}
