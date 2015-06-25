@@ -10,7 +10,7 @@
     <h1>
       areaDetector Dexela driver</h1>
     <h2>
-      February 15, 2015</h2>
+      June 23, 2015</h2>
     <h2>
       Mark Rivers</h2>
     <h2>
@@ -32,8 +32,8 @@
     Introduction</h2>
   <p>
     This is an <a href="http://www.aps.anl.gov/epics">EPICS</a> <a href="areaDetector.html">
-      areaDetector</a> driver for the flat-panel CMOS detectors from 
-      <a href="http://www.perkinelmer.com/imaging-components/detectors/dexela-cmos">Perkin Elmer</a>.</p>
+      areaDetector</a> driver for the flat-panel CMOS detectors from <a href="http://www.perkinelmer.com/imaging-components/detectors/dexela-cmos">
+        Perkin Elmer</a>.</p>
   <p>
     The driver is based upon the Dexela library provided by Perkin Elmer. It only runs
     on Microsoft Windows computers. It supports both 32-bit and 64-bit versions of Windows.
@@ -48,13 +48,13 @@
     It implements many of the parameters in <a href="areaDetectorDoxygenHTML/asyn_n_d_array_driver_8h.html">
       asynNDArrayDriver.h</a> and in <a href="areaDetectorDoxygenHTML/_a_d_driver_8h.html">
         ADArrayDriver.h</a>. It also implements a number of parameters that are specific
-    to the Dexela detectors. The <a href="areaDetectorDoxygenHTML/class_dexela.html">
-      Dexela class documentation</a> describes this class in detail.</p>
+    to the Dexela detectors. The <a href="areaDetectorDoxygenHTML/class_dexela.html">Dexela
+      class documentation</a> describes this class in detail.</p>
   <h2 id="StandardNotes" style="text-align: left">
     Implementation of standard driver parameters</h2>
   <p>
-    The following table describes how the Dexela driver implements some of the
-    standard driver parameters.
+    The following table describes how the Dexela driver implements some of the standard
+    driver parameters.
   </p>
   <table border="1" cellpadding="2" cellspacing="2" style="text-align: left">
     <tbody>
@@ -77,8 +77,7 @@
         <td>
           $(P)$(R)NumImages</td>
         <td>
-          Controls the number of images to acquire when ADImageMode is Multiple
-        </td>
+          Controls the number of images to acquire when ADImageMode is Multiple </td>
       </tr>
       <tr>
         <td>
@@ -99,10 +98,14 @@
         <td>
           Sets the trigger mode for the detector. Options are:
           <ul>
-            <li>Int. Free Run (internal trigger, frame rate limited by ADAcquireTime and readout time)</li>
-            <li>Int. Fixed Rate (internal trigger, frame rate controlled by ADAcquireTime, ADAcquirePeriod, and readout time)</li>
+            <li>Int. Free Run (internal trigger, frame rate limited by ADAcquireTime and readout
+              time)</li>
+            <li>Int. Fixed Rate (internal trigger, frame rate controlled by ADAcquireTime, ADAcquirePeriod,
+              and readout time)</li>
             <li>Int. Software (software trigger per frame)</li>
-            <li>Ext. Neg. Edge (external negative edge trigger)</li>
+            <li>Ext. Edge Multi (one external negative edge trigger starts a sequence of multiple
+              frames)</li>
+            <li>Ext. Edge Single (one external negative edge trigger for a each single frame)</li>
             <li>Ext. Bulb (external bulb trigger; high to expose, low to read out)</li>
           </ul>
         </td>
@@ -112,8 +115,8 @@
   <h2 id="Driver_parameters" style="text-align: left">
     Dexela specific parameters</h2>
   <p>
-    The Dexela driver implements the following parameters in addition to those
-    in asynNDArrayDriver.h and ADDriver.h.
+    The Dexela driver implements the following parameters in addition to those in asynNDArrayDriver.h
+    and ADDriver.h.
   </p>
   <table border="1" cellpadding="2" cellspacing="2" style="text-align: left">
     <tbody>
@@ -162,12 +165,12 @@
         <td>
           r/w</td>
         <td>
-          The detector binning mode.  The standard BinX and BinY records are not used because the Dexela detectors
-          only support (at most) binning values of 1, 2 and 4 independently for X and Y.  Specific detectors may restrict the
-          choices further.  For example the Dexela 1512 only supports 1x1, 2x2, and 4x4 binning. i.e. not 1x2, 2x4, etc.
-          The menu choices for this record are constructed by the driver at initialization based on the actual
-          capabilities of the detector in use.
-          </td>
+          The detector binning mode. The standard BinX and BinY records are not used because
+          the Dexela detectors only support (at most) binning values of 1, 2 and 4 independently
+          for X and Y. Specific detectors may restrict the choices further. For example the
+          Dexela 1512 only supports 1x1, 2x2, and 4x4 binning. i.e. not 1x2, 2x4, etc. The
+          menu choices for this record are constructed by the driver at initialization based
+          on the actual capabilities of the detector in use. </td>
         <td>
           DEX_BINNING_MODE</td>
         <td>
@@ -185,8 +188,7 @@
         <td>
           r/w</td>
         <td>
-          The detector full-well mode.  The choices are "Low noise" and "High range".
-          </td>
+          The detector full-well mode. The choices are "Low noise" and "High range". </td>
         <td>
           DEX_FULL_WELL_MODE</td>
         <td>
@@ -326,7 +328,8 @@
         <td>
           r/w</td>
         <td>
-          The name of the offset file to save or load.  The CorrectionsDirectory will be used for the path.</td>
+          The name of the offset file to save or load. The CorrectionsDirectory will be used
+          for the path.</td>
         <td>
           DEX_OFFSET_FILE</td>
         <td>
@@ -374,16 +377,18 @@
         <td>
           r/w</td>
         <td>
-          An offset that is added to the image when the offset correction is performed. 
-          CorrectedImage = RawImage - OffsetImage + OffsetConstant.  This constant should be used to prevent the CorrectedImage
-          from having any negative pixel values, which would otherwise be clipped to 0.</td>
+          An offset that is added to the image when the offset correction is performed. CorrectedImage
+          = RawImage - OffsetImage + OffsetConstant. This constant should be used to prevent
+          the CorrectedImage from having any negative pixel values, which would otherwise
+          be clipped to 0.</td>
         <td>
           DEX_OFFSET_CONSTANT</td>
         <td>
           $(P)$(R)DEXOffsetContant<br />
           $(P)$(R)DEXOffsetContant_RBV</td>
         <td>
-          longout <br />
+          longout
+          <br />
           longin</td>
       </tr>
       <tr>
@@ -577,8 +582,8 @@
   <h2 id="Unsupported">
     Unsupported standard driver parameters</h2>
   <p>
-    The Dexela driver does not support the following standard driver parameters
-    because they are not supported in the Dexels library:</p>
+    The Dexela driver does not support the following standard driver parameters because
+    they are not supported in the Dexels library:</p>
   <ul>
     <li>Type/Color (NDDataType, NDColorMode)</li>
     <li>No Hardware shutter control </li>
@@ -586,8 +591,8 @@
   <h2 id="Configuration">
     Configuration</h2>
   <p>
-    The Dexel driver is created with the DexelaConfig command, either from
-    C/C++ or from the EPICS IOC shell.</p>
+    The Dexel driver is created with the DexelaConfig command, either from C/C++ or
+    from the EPICS IOC shell.</p>
   <pre>int DexelaConfig(const char *portName, int detIndex,
                       int maxBuffers, size_t maxMemory,
                       int priority, int stackSize )
@@ -595,8 +600,8 @@
   <p>
     For details on the meaning of the parameters to this function refer to the detailed
     documentation on the DexelaConfig function in the <a href="areaDetectorDoxygenHTML/_dexela_8cpp.html">
-      Dexela.cpp documentation</a> and in the documentation for the constructor
-    for the <a href="areaDetectorDoxygenHTML/class_dexela.html">Dexela class</a>.
+      Dexela.cpp documentation</a> and in the documentation for the constructor for
+    the <a href="areaDetectorDoxygenHTML/class_dexela.html">Dexela class</a>.
   </p>
   <p>
     There an example IOC boot directory and startup script (<a href="dexela_st_cmd.html">iocBoot/iocDexela/st.cmd)</a>
@@ -607,11 +612,10 @@
   <p>
     The following show the MEDM screens that are used to control the Dexela detector.
     Note that the general purpose screen ADBase.adl can be used, but it exposes many
-    controls that are not applicable to the Dexela, and lacks some fields that
-    are important for the Dexela driver.</p>
+    controls that are not applicable to the Dexela, and lacks some fields that are important
+    for the Dexela driver.</p>
   <p>
-    <code>Dexela.adl</code> is the main screen used to control the Dexela
-    driver.
+    <code>Dexela.adl</code> is the main screen used to control the Dexela driver.
   </p>
   <div style="text-align: center">
     <h3 style="text-align: center">
@@ -625,9 +629,10 @@
   <ul>
     <li>Dexela 1512 detector with the CameraLink PCI/E frame grabber
       <ul>
-        <li>Can stream data continuously to local disk at maximum unbinned (1536x1944) frame rate of 26 frames/s (149 MB/s)
-          and 2x2 binned (773x972) at 70 frames/s (100 MB/s). These tests were done on a Windows 7 64-bit
-          machine with 2 disk drives (SAS, 15K RPM, RAID 0).</li>
+        <li>Can stream data continuously to local disk at maximum unbinned (1536x1944) frame
+          rate of 26 frames/s (149 MB/s) and 2x2 binned (773x972) at 70 frames/s (100 MB/s).
+          These tests were done on a Windows 7 64-bit machine with 2 disk drives (SAS, 15K
+          RPM, RAID 0).</li>
       </ul>
     </li>
   </ul>
@@ -638,9 +643,13 @@
   <p>
     The following are some current restrictions of the Dexela driver:</p>
   <ul>
-    <li>Does not currently support saving images to disk with the Dexela library except for corrections files.</li>
-    <li>Still trying to figure out how to get fixed rate images and correct way to collect a sequence of images.</li>
-    <li>Gain correction is not tested because I don't have a way to collect flat field images.</li>
+    <li>Does not currently support saving images to disk with the Dexela library except
+      for corrections files.</li>
+    <li>Single image mode is not working.</li>
+    <li>There is a long delay (&gt;1 second) after setting Acquire=1 before collection
+      actually starts.</li>
+    <li>Gain correction is not tested because I don't have a way to collect flat field
+      images.</li>
     <li>Defect map correction is not tested because I don't have a defect map file.</li>
   </ul>
 </body>
