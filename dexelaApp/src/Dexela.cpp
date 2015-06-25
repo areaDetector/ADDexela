@@ -735,12 +735,7 @@ void Dexela::acquireStart(void)
                                                "Preprogrammed_exposure"};
   static const char *functionName = "acquireStart";
 
-  // Do callbacks so Acquire goes to 1 so user sees acquisition has started
-  int acquiring;
-  getIntegerParam(ADAcquire,   &acquiring);
-  asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
-    "%s::%s calling callParamCallbacks(), acquiring=%d\n",
-    driverName, functionName, acquiring);
+  // Do callbacks so Acquire_RBV goes to 1 so user sees acquisition has started
   callParamCallbacks();
   
   try {
