@@ -9,8 +9,6 @@
  *
  * Current author: Mark Rivers
  *
- * Minor Edits: ImageMode to determine use of PulseGen, Turn off pulse gen in acquireStop() - Zachary Brown 04/14/15.
- *
  *
  */
 
@@ -718,13 +716,14 @@ void Dexela::acquireStart(void)
 {
   int imageMode;
   int numImages;
+  int imagesPerTrigger;
   int triggerMode;
   double acquireTime;
   double acquirePeriod;
-  double gap;
-  double readoutTime;
+  double gapTime;
   ExposureTriggerSource triggerSource;
   ExposureModes exposureMode;
+  double pulseFrequency;
   int status = asynSuccess;
   static const char *triggerSourceStrings[] = {"Ext_neg_edge_trig",
                                                "Internal_Software",
@@ -749,54 +748,46 @@ void Dexela::acquireStart(void)
     setIntegerParam(ADNumImagesCounter, 0);
     setIntegerParam(ADStatus, ADStatusAcquire);
 
-    /** Trigger & Exposure Modes
-      * Internal_Software: will trigger from SoftwareTrigger() or Internal Pulse Gen
-      * Ext_neg_edge_trig: trigger int. timed sequence from input pulse
-      * Ext_Duration_Trig: sequence with timing from input sync signal.
-      *
-      * Sequence_Exposure: readout immediately after exposure
-      * Frame_Rate: readout after adj. delay from AcqPeriod PV */
-
-    readoutTime = pDetector_->GetReadOutTime() / 1000.;
+    // Set the defaults which may be overridden below
+    triggerSource = Internal_Software;
+    exposureMode = Sequence_Exposure;
+    pulseFrequency = -1;
+    imagesPerTrigger = 1;
     asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
-      "%s::%s called DexelaDetector::GetReadOutTime(), value=%f\n",
-      driverName, functionName, readoutTime);
+       "%s::%s calling DexelaDetector::ToggleGenerator(false)\n",
+       driverName, functionName);
+    pDetector_->ToggleGenerator(false);
+    
     switch (triggerMode) {
 
       case DEXInternalFreeRun:
-        triggerSource = Internal_Software;
-        exposureMode = Sequence_Exposure;
-         break;
+        pulseFrequency = 0;
+        break;
       
       case DEXInternalFixedRate:
-        triggerSource = Internal_Software;
-        exposureMode = Frame_Rate_exposure;
-        gap = acquirePeriod - acquireTime;
-        if (gap < readoutTime) gap = readoutTime;
-        asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
-          "%s::%s calling DexelaDetector::SetSetGapTime(%f)\n",
-          driverName, functionName, gap*1000.);
-        pDetector_->SetGapTime((float)(gap*1000.));  
+        pulseFrequency = 1./acquirePeriod;
         break;
         
       case DEXInternalSoftware:
-        triggerSource = Internal_Software;
-        exposureMode = Sequence_Exposure;
         break;
         
       case DEXExternalEdgeSingle:
         triggerSource = Ext_neg_edge_trig;
-        exposureMode = Frame_Rate_exposure;
         break;
         
       case DEXExternalEdgeMulti:
         triggerSource = Ext_neg_edge_trig;
-        exposureMode = Sequence_Exposure;
+        imagesPerTrigger = numImages;
+        gapTime = (acquirePeriod - acquireTime)*1000.;
+        asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
+           "%s::%s calling DexelaDetector::SetGapTime(%f)\n",
+           driverName, functionName, gapTime);
+        pDetector_->SetGapTime((float)gapTime);
+        exposureMode = Frame_Rate_exposure;
         break;
         
       case DEXExternalBulb:
         triggerSource = Ext_Duration_Trig;
-        exposureMode = Sequence_Exposure;
         break;
         
     }
@@ -804,10 +795,34 @@ void Dexela::acquireStart(void)
       "%s::%s calling DexelaDetector::SetTriggerSource(%s)\n",
       driverName, functionName, triggerSourceStrings[triggerSource]);
     pDetector_->SetTriggerSource(triggerSource);
+
+    if (imageMode == ADImageSingle) exposureMode = Expose_and_read;
     asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
        "%s::%s calling DexelaDetector::SetExposureMode(%s)\n",
        driverName, functionName, exposureModeStrings[exposureMode]);
-    pDetector_->SetExposureMode(exposureMode);   
+    pDetector_->SetExposureMode(exposureMode);
+
+    asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
+       "%s::%s calling DexelaDetector::SetNumOfExposures(%d)\n",
+       driverName, functionName, imagesPerTrigger);
+    pDetector_->SetNumOfExposures(imagesPerTrigger);
+
+    if (pulseFrequency < 0) {
+      asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
+         "%s::%s calling DexelaDetector::DisablePulseGenerator()\n",
+         driverName, functionName);
+      pDetector_->DisablePulseGenerator();
+    } else if (pulseFrequency == 0) {    
+      asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
+         "%s::%s calling DexelaDetector::EnablePulseGenerator()\n",
+         driverName, functionName);
+      pDetector_->EnablePulseGenerator();
+    } else {
+      asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
+         "%s::%s calling DexelaDetector::EnablePulseGenerator(%f)\n",
+         driverName, functionName, pulseFrequency);
+      pDetector_->EnablePulseGenerator((float)pulseFrequency);
+    }
 
     setShutter(ADShutterOpen);
 
@@ -818,18 +833,6 @@ void Dexela::acquireStart(void)
     switch (imageMode) {
 
       case ADImageSingle:
-        asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
-           "%s::%s calling DexelaDetector::ToggleGenerator(false)\n",
-           driverName, functionName);
-        pDetector_->ToggleGenerator(false);
-        asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
-           "%s::%s calling DexelaDetector::DisablePulseGenerator()\n",
-           driverName, functionName);
-        pDetector_->DisablePulseGenerator();
-        asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
-           "%s::%s calling DexelaDetector::SetExposureMode(Expose_and_read)\n",
-           driverName, functionName);
-        pDetector_->SetExposureMode(Expose_and_read);
         asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
            "%s::%s calling DexelaDetector::Snap(%d, %d)\n",
            driverName, functionName, snapBuffer_, (int)((acquireTime + 1)*1000.));
@@ -844,47 +847,23 @@ void Dexela::acquireStart(void)
 
       case ADImageMultiple:
         asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
-           "%s::%s calling DexelaDetector::SetNumOfExposures(%d)\n",
-           driverName, functionName, numImages);
-        pDetector_->SetNumOfExposures(numImages);
-        asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
-           "%s::%s calling DexelaDetector::ToggleGenerator(false)\n",
-           driverName, functionName);
-        pDetector_->ToggleGenerator(false);
-        asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
-           "%s::%s calling DexelaDetector::DisablePulseGenerator()\n",
-           driverName, functionName);
-        pDetector_->DisablePulseGenerator();
-        asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
-           "%s::%s calling DexelaDetector::GoLiveSeq()\n",
-           driverName, functionName);
-        pDetector_->GoLiveSeq();
-        if (triggerMode != DEXInternalSoftware) {
-          asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
-             "%s::%s calling DexelaDetector::SoftwareTrigger()\n",
-             driverName, functionName);
-          pDetector_->SoftwareTrigger();
-        }
+           "%s::%s calling DexelaDetector::GoLiveSeq(%d, %d, %d)\n",
+           driverName, functionName, 0, numBuffers_, numImages);
+        pDetector_->GoLiveSeq(0, numBuffers_-1, numImages);
         break;
 
       case ADImageContinuous:
         asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
-           "%s::%s calling DexelaDetector::SetNumOfExposures(1)\n",
-           driverName, functionName);
-        pDetector_->SetNumOfExposures(1);
-        asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
-           "%s::%s calling DexelaDetector::EnablePulseGenerator(%f)\n",
-           driverName, functionName, float(1./(acquireTime + gap)));
-        pDetector_->EnablePulseGenerator(float(1./(acquireTime + gap)));
-        asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
-           "%s::%s calling DexelaDetector::ToggleGenerator(true)\n",
-           driverName, functionName);
-        pDetector_->ToggleGenerator(true);
-        asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
-           "%s::%s calling DexelaDetector::GoLiveSeq()\n",
-           driverName, functionName);
-        pDetector_->GoLiveSeq();
+           "%s::%s calling DexelaDetector::GoLiveSeq(%d, %d, %d)\n",
+           driverName, functionName, 0, numBuffers_, 0);
+        pDetector_->GoLiveSeq(0, numBuffers_-1, 0);
         break;
+    }
+    if (pulseFrequency >= 0) {
+      asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
+         "%s::%s calling DexelaDetector::ToggleGenerator(true)\n",
+         driverName, functionName);
+      pDetector_->ToggleGenerator(true);
     }
 
   } catch (DexelaException &e) {
