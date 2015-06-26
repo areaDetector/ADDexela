@@ -99,12 +99,12 @@
           Sets the trigger mode for the detector. Options are:
           <ul>
             <li>Int. Free Run (internal trigger, frame rate limited by ADAcquireTime and readout
-              time)</li>
-            <li>Int. Fixed Rate (internal trigger, frame rate controlled by ADAcquireTime, ADAcquirePeriod,
-              and readout time)</li>
+              time; ADAcquirePeriod is ignorred)</li>
+            <li>Int. Fixed Rate (internal trigger, frame rate controlled by ADAcquirePeriod, which must be greater
+			  than both the ADAcquireTime and the readout time)</li>
             <li>Int. Software (software trigger per frame)</li>
             <li>Ext. Edge Multi (one external negative edge trigger starts a sequence of multiple
-              frames)</li>
+              frames; the frame rate is determined by ADAcquirePeriod, which must be greater than ACAcquireTime plus the readout time)</li>
             <li>Ext. Edge Single (one external negative edge trigger for a each single frame)</li>
             <li>Ext. Bulb (external bulb trigger; high to expose, low to read out)</li>
           </ul>
