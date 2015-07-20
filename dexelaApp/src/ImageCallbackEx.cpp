@@ -113,7 +113,9 @@ void myCallback(int fc, int buf, DexelaDetector* det)
     modelNumber = det->GetModelNumber();
     binningMode = det->GetBinningMode();
   } else {
-    data.SetImageParameters(binningMode, modelNumber);
+    // In SDK prior to 1.0.0.5 the following line was needed or performance suffered
+    // because it needed to read values from detector registers
+//  data.SetImageParameters(binningMode, modelNumber);
     det->ReadBuffer(buf, data);
     data.LoadDarkImage(offset);
     data.SetDarkOffset(50);
