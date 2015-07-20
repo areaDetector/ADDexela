@@ -30,6 +30,7 @@ class  DllExport DexelaDetector
 
 private:
 
+	void* _cbData;
 	void* pyData;
 	char param[50];
 	DexelaException* cbException;
@@ -103,8 +104,7 @@ public:
 	int GetFirmwareVersion();
 	void GetFirmwareBuild(int& iDayAndMonth, int& iYear, int& iTime);
 	DetectorInterface GetTransportMethod();
-	double GetReadOutTime();
-	//float GetReadOutTime();
+	float GetReadOutTime();
 	bool IsCallbackActive();
 	bool IsLive();
 
@@ -116,6 +116,7 @@ public:
 	void ClearBuffers();
 	void LoadSensorConfigFile(char* filename);
 	void SoftReset(void);
+	void PowerSwitch(bool flag);
 	
 	void GoLiveSeq(int start, int stop,int numBuf);
 	void GoLiveSeq();
@@ -131,6 +132,8 @@ public:
 	void WaitImage(int timeout);
 
 	void SetCallback(IMAGE_CALLBACK func);
+	void SetCallbackData(void* cbData);
+	void* GetCallbackData();
 	void StopCallback();
 
 	void CheckForCallbackError();
@@ -141,12 +144,11 @@ public:
 	void SetROICoordinates(unsigned short usStartColumn, unsigned short usStartRow, unsigned short usROIWidth, unsigned short usROIHeight);
 	void GetROICoordinates(unsigned short& usStartColumn,unsigned short& usStartRow,unsigned short& usROIWidth,unsigned short& usROIHeight);
 	void EnableROIMode(bool bEnableROI);
-	bool GetROIState();
+	bool IsROIModeEnabled();
 	unsigned short GetSensorHeight(unsigned short uiSensorID=1);
 	unsigned short GetSensorWidth(unsigned short uiSensorID=1);
-	///////// unsigned short GetFrameCount()			/////////!!! TO BE REVIEWED if required and whether reading the register does not disturb frame transfer
-	bool IsFrameCntWithinImage();
-	void EnableFrameCntWithinImage(unsigned short usEnable);
+	bool IsFrameCountDisplayed();
+	void DisplayFrameCount(bool bEnable);
 	void SetSlowed(bool flag);
 
 	void SetReadoutMode(ReadoutModes mode);

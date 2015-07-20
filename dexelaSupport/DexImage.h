@@ -27,7 +27,11 @@ using namespace std;
 class  DllExport DexImage
 {
 
+#ifdef MOCK_TEST
+	public:
+#else
 	private:
+#endif
 		boost::shared_ptr<BaseImage> baseIm;
 
 public:
@@ -89,7 +93,21 @@ public:
 
 		bool IsEmpty();
 
-		void SetScrambledFlag(bool onOff);
+		bool IsDefectCorrected();
+		bool IsDarkCorrected();
+		bool IsFloodCorrected();
+		bool IsAveraged();
+		bool IsFixed();
+		bool IsLinearized();
+		bool IsSorted();
 
+		void SetFloodCorrectedFlag(bool onOff);
+		void SetDarkCorrectedFlag(bool onOff);
+		void SetDefectCorrectedFlag(bool onOff);
+		void SetAveragedFlag(bool onOff);
+		void SetFixedFlag(bool onOff);
+		void SetLinearizedFlag(bool onOff);
+		void SetSortedFlag(bool onOff);
+		
 		void SetROIParameters(unsigned short usStartColumn, unsigned short usStartRow, unsigned short usROIWidth, unsigned short usROIHeight);
 };

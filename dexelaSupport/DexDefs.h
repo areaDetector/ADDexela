@@ -112,10 +112,14 @@ typedef enum //bins
     /// Digital 2x2 binning
     /// </summary>
     ix22,
+	/// <summary>
+	/// Digital 4x4 binning
+	/// </summary>
+	ix44,
     /// <summary>
-    /// Indcates an error
+	/// Indcates that the binning mode is not known (used mainly in the <see cref="DexImage"/> class)
     /// </summary>
-    binsError
+    BinningUnknown
 
 }bins;
 
@@ -191,11 +195,7 @@ typedef enum //FullWellModes
     /// <summary>
     /// The normal full well mode
     /// </summary>
-    High,
-    /// <summary>
-    /// Indicates an error
-    /// </summary>
-    FullWellModesError
+    High
 }FullWellModes;
 
 
@@ -323,33 +323,9 @@ typedef enum //ReadoutModes
 	/// <summary>
     /// The sensor is only read out (using the minimum frame time) on request. The read-out will be followed by the transmission of the image. A frame request can be an external trigger pulse, internal trigger or software trigger
     /// </summary>
-    IdleMode,
-    
-    /// <summary>
-    /// Indicates an error
-    /// </summary> 
-    ReadoutModeError
+    IdleMode
 } ReadoutModes;
 
-
-/// <summary>
-/// An enumeration of the available resolution modes
-/// </summary>
-typedef enum //ResolutionModes
-{
-    /// <summary>
-    /// The 100micron mode
-    /// </summary>
-    pixelsize50micron = 1,
-    /// <summary>
-    /// The 50micron mode
-    /// </summary>
-    pixelsize100micron = 0,
-    /// <summary>
-    /// Indicates an error
-    /// </summary>
-    ResolutionModesError
-} ResolutionModes;
 
 /// <summary>
 /// An enumeration of the different image types.
