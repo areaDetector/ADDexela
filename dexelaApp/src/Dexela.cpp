@@ -81,10 +81,6 @@ static enumStruct_t fullWellEnums[MAX_FULL_WELL]= {
   {High, "High range"}
 };
 
-// I don't yet know how to pass a pointer to "this" to their frame callback function.
-// For now we set this to a static variable, which limits one to a single instance of this class per process
-static Dexela *pGlobalDexela;
-
 // Forward function definitions
 static void exitCallbackC(void *drvPvt);
 
@@ -112,7 +108,8 @@ extern "C" int DexelaConfig(const char *portName, int detIndex,
 // Callback function that is called by Dexela SDK for each frame
 static void newFrameCallback(int frameCounter, int bufferNumber, DexelaDetector *pDet)
 {
-  pGlobalDexela->newFrameCallback(frameCounter, bufferNumber);
+  Dexela *pDexela = (Dexela *)pDet->GetCallbackData();
+  pDexela->newFrameCallback(frameCounter, bufferNumber);
 }
 
 
@@ -140,8 +137,6 @@ Dexela::Dexela(const char *portName,  int detIndex,
   static const char *functionName = "Dexela";
   
   int numDevices;
-  
-  pGlobalDexela = this;
   
   /* Add parameters for this driver */
   createParam(DEX_SerialNumberString,                asynParamInt32,   &DEX_SerialNumber);
@@ -220,6 +215,7 @@ Dexela::Dexela(const char *portName,  int detIndex,
 
     // Set callback
     pDetector_->SetCallback(::newFrameCallback);
+    pDetector_->SetCallbackData(this);
 
     // Enable pulse generator
     pDetector_->EnablePulseGenerator();
@@ -415,7 +411,9 @@ void Dexela::newFrameCallback(int frameCounter, int bufferNumber)
         getIntegerParam(ADImageMode, &imageMode);
         getIntegerParam(ADNumImages, &numImages);
         getIntegerParam(ADNumImagesCounter, &imageCounter);
-        dataImage.SetImageParameters(binningMode_, modelNumber_);
+        // In SDK prior to 1.0.0.5 the following line was needed or performance suffered
+        // because it needed to read values from detector registers
+//      dataImage.SetImageParameters(binningMode_, modelNumber_);
         pDetector_->ReadBuffer(bufferNumber, dataImage);
         if ((imageMode == ADImageSingle) ||
             ((imageMode == ADImageMultiple) && 
