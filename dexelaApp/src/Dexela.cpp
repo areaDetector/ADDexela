@@ -254,6 +254,10 @@ static void exitCallbackC(void *pPvt)
 
 Dexela::~Dexela()
 {
+  static const char *functionName = "~Dexela";
+  
+  asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
+     "%s::%s calling DexelaDetector::CloseBoard()\n",driverName, functionName);
   pDetector_->CloseBoard();
 }
 
@@ -366,7 +370,12 @@ void Dexela::newFrameCallback(int frameCounter, int bufferNumber)
       case ADFrameBackground:
         getIntegerParam(DEX_NumOffsetFrames,    &numOffsetFrames);
         getIntegerParam(DEX_CurrentOffsetFrame, &offsetCounter);
+
+        asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
+          "%s::%s calling DexelaDetector::ReadBuffer(%d, %p, %d)\n",
+          driverName, functionName, bufferNumber, offsetImage_, offsetCounter);
         pDetector_->ReadBuffer(bufferNumber, offsetImage_, offsetCounter);
+
         pData = offsetImage_.GetDataPointerToPlane(offsetCounter);
         offsetCounter++;
         setIntegerParam(DEX_CurrentOffsetFrame, offsetCounter);
@@ -387,7 +396,12 @@ void Dexela::newFrameCallback(int frameCounter, int bufferNumber)
       case ADFrameFlatField:
         getIntegerParam(DEX_NumGainFrames,    &numGainFrames);
         getIntegerParam(DEX_CurrentGainFrame, &gainCounter);
+
+        asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
+          "%s::%s calling DexelaDetector::ReadBuffer(%d, %p, %d)\n",
+          driverName, functionName, bufferNumber, gainImage_, gainCounter);
         pDetector_->ReadBuffer(bufferNumber, gainImage_, gainCounter);
+
         pData = gainImage_.GetDataPointerToPlane(gainCounter);
         gainCounter++;
         setIntegerParam(DEX_CurrentGainFrame, gainCounter);
@@ -414,7 +428,12 @@ void Dexela::newFrameCallback(int frameCounter, int bufferNumber)
         // In SDK prior to 1.0.0.5 the following line was needed or performance suffered
         // because it needed to read values from detector registers
 //      dataImage.SetImageParameters(binningMode_, modelNumber_);
+
+        asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
+          "%s::%s calling DexelaDetector::ReadBuffer(%d, %p)\n",
+          driverName, functionName, bufferNumber, dataImage);
         pDetector_->ReadBuffer(bufferNumber, dataImage);
+
         if ((imageMode == ADImageSingle) ||
             ((imageMode == ADImageMultiple) && 
              (imageCounter >= numImages-1))) {
@@ -454,9 +473,18 @@ void Dexela::newFrameCallback(int frameCounter, int bufferNumber)
        * Now release it before getting a new version. */
       if (this->pArrays[0])
           this->pArrays[0]->release();
+
       /* Allocate the array */
       dims[0] = pDetector_->GetBufferXdim();
+      asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
+        "%s::%s called DexelaDetector::GetBufferYdim() returned dims[0]=%d\n",
+        driverName, functionName, dims[0]);
+
       dims[1] = pDetector_->GetBufferYdim();
+      asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
+        "%s::%s called DexelaDetector::GetBufferYdim() returned dims[1]=%d\n",
+        driverName, functionName, dims[0]);
+
       this->pArrays[0] = pNDArrayPool->alloc(2, dims, dataType, 0, NULL);
       if (this->pArrays[0] == NULL) {
         asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
@@ -550,12 +578,21 @@ asynStatus Dexela::writeInt32(asynUser *pasynUser, epicsInt32 value)
     }
     else if (function == DEX_BinningMode) {
       binningMode_ = (bins)value;
+      asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
+        "%s::%s calling DexelaDetector::SetBinningMode(%d)\n",
+        driverName, functionName, binningMode_);
       pDetector_->SetBinningMode(binningMode_);
     }
     else if (function == DEX_FullWellMode) {
+      asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
+        "%s::%s calling DexelaDetector::SetFullWellMode(%d)\n",
+        driverName, functionName, (FullWellModes)value);
       pDetector_->SetFullWellMode((FullWellModes)value);
     }
     else if (function == DEX_SoftwareTrigger) {
+      asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
+        "%s::%s calling DexelaDetector::SoftwareTrigger()\n",
+        driverName, functionName);
       pDetector_->SoftwareTrigger();
     }
     else if (function == DEX_LoadOffsetFile) {
@@ -751,6 +788,7 @@ void Dexela::acquireStart(void)
     exposureMode = Sequence_Exposure;
     pulseFrequency = -1;
     imagesPerTrigger = 1;
+
     asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
        "%s::%s calling DexelaDetector::ToggleGenerator(false)\n",
        driverName, functionName);
@@ -777,10 +815,12 @@ void Dexela::acquireStart(void)
         triggerSource = Ext_neg_edge_trig;
         imagesPerTrigger = numImages;
         gapTime = (acquirePeriod - acquireTime)*1000.;
+
         asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
            "%s::%s calling DexelaDetector::SetGapTime(%f)\n",
            driverName, functionName, gapTime);
         pDetector_->SetGapTime((float)gapTime);
+
         exposureMode = Frame_Rate_exposure;
         break;
         
@@ -915,10 +955,26 @@ void Dexela::acquireOffsetImage(void)
     // Make sure the shutter is closed
     setShutter(ADShutterClosed);
 
+    asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
+      "%s::%s calling DexelaDetector::SetTriggerSource(Internal_Software)\n",
+      driverName, functionName);
     pDetector_->SetTriggerSource(Internal_Software);
+
+    asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
+      "%s::%s calling DexelaDetector::SetExposureMode(Sequence_Exposure)\n",
+      driverName, functionName);
     pDetector_->SetExposureMode(Sequence_Exposure);
+
+    asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
+      "%s::%s calling DexelaDetector::ToggleGenerator(true)\n",
+      driverName, functionName);
     pDetector_->ToggleGenerator(true);      
+
+    asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
+      "%s::%s calling DexelaDetector::GoLiveSeq()\n",
+      driverName, functionName);
     pDetector_->GoLiveSeq();
+
   } catch (DexelaException &e) {
     reportError(functionName, e);
   }
@@ -944,10 +1000,26 @@ void Dexela::acquireGainImage(void)
     // Make sure the shutter is open
     setShutter(ADShutterOpen);
 
+    asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
+      "%s::%s calling DexelaDetector::SetTriggerSource(Internal_Software)\n",
+      driverName, functionName);
     pDetector_->SetTriggerSource(Internal_Software);
+
+    asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
+      "%s::%s calling DexelaDetector::SetExposureMode(Sequence_Exposure)\n",
+      driverName, functionName);
     pDetector_->SetExposureMode(Sequence_Exposure);
+
+    asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
+      "%s::%s calling DexelaDetector::ToggleGenerator(true)\n",
+      driverName, functionName);
     pDetector_->ToggleGenerator(true);      
+
+    asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
+      "%s::%s calling DexelaDetector::GoLiveSeq()\n",
+      driverName, functionName);
     pDetector_->GoLiveSeq();
+
   } catch (DexelaException &e) {
     reportError(functionName, e);
   }
