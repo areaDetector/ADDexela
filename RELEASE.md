@@ -19,7 +19,13 @@ files respectively, in the configure/ directory of the appropriate release of th
 Release Notes
 =============
 
-R2-0 (June 23, 2015)
+R2-0 (February 19, 2017)
+----
+* Added asynPrint ASYN_TRACEIO_DRIVER to print info for all calls to vendor library
+* Added destructor
+
+
+R2-0beta2 (June 23, 2015)
 ----
 * Fixes from Zachary Brown at Cornell to get image modes and triggers working correctly.
 * Changes for ADCore R2-2.
