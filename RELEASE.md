@@ -23,6 +23,7 @@ R2-0 (February 19, 2017)
 ----
 * Added asynPrint ASYN_TRACEIO_DRIVER to print info for all calls to vendor library
 * Added destructor
+* Changed layout of medm screen for ADCore R2-6.
 
 
 R2-0beta2 (June 23, 2015)
