@@ -19,6 +19,10 @@ files respectively, in the configure/ directory of the appropriate release of th
 Release Notes
 =============
 
+R2-1 (July 4, 2017)
+----
+* Fixed layout of medm screen for ADCore R3-0.
+
 R2-0 (February 19, 2017)
 ----
 * Added asynPrint ASYN_TRACEIO_DRIVER to print info for all calls to vendor library
