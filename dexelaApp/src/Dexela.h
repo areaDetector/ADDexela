@@ -14,6 +14,8 @@
 #ifndef Dexela_H
 #define Dexela_H
 
+#define DRIVER_VERSION "2.2"
+
 #include "ADDriver.h"
 #include "DexelaDetector.h"
 

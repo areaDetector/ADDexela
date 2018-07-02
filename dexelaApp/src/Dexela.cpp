@@ -167,6 +167,7 @@ Dexela::Dexela(const char *portName,  int detIndex,
   createParam(DEX_CorrectionsDirectoryString,        asynParamOctet,   &DEX_CorrectionsDirectory);
 
   /* Set some default values for parameters */
+  setStringParam(NDDriverVersion, DRIVER_VERSION);
   setIntegerParam(NDArraySize, 0);
   setIntegerParam(NDDataType, NDUInt16);
   setIntegerParam(DEX_AcquireOffset, 0);
