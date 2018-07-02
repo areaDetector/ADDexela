@@ -19,6 +19,17 @@ files respectively, in the configure/ directory of the appropriate release of th
 Release Notes
 =============
 
+R2-2 (July 2, 2018)
+----
+* Changed configure/RELEASE files for compatibility with areaDetector R3-3.
+* Added support for new PVs in ADCore R3-3 in opi files (NumQueuedArrays, etc.)
+* Added ADBuffers.adl to main medm screen.
+* Improved op/*/autoconvert/* files with better medm files and better converters.
+* Added NDDriverVersion information.
+* Removed calls to unlock()/lock() around doCallbacksGenericPointer, not needed.
+* Added op/Makefile for autoconvert.
+
+
 R2-1 (July 4, 2017)
 ----
 * Fixed layout of medm screen for ADCore R3-0.
