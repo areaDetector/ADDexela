@@ -9,4 +9,5 @@ $(P)$(R)DEXUseGain
 $(P)$(R)DEXGainFile
 $(P)$(R)DEXUseDefectMap
 $(P)$(R)DEXDefectMapFile
+$(P)$(R)DEXReadoutMode
 file "ADBase_settings.req", P=$(P), R=$(R)

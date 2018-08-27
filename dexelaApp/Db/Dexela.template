@@ -52,6 +52,31 @@ record(mbbi, "$(P)$(R)DEXFullWellMode_RBV")
    field(SCAN, "I/O Intr")
 }
 
+######################
+# Readout mode records
+######################
+
+record(mbbo, "$(P)$(R)DEXReadoutMode")
+{
+   field(PINI, "YES")
+   field(DTYP, "asynInt32")
+   field(OUT,  "@asyn($(PORT),$(ADDR),$(TIMEOUT))DEX_READOUT_MODE")
+   field(ZRVL, "0")
+   field(ZRST, "Continuous")
+   field(ONVL, "1")
+   field(ONST, "Idle")
+}
+
+record(mbbi, "$(P)$(R)DEXReadoutMode_RBV")
+{
+   field(DTYP, "asynInt32")
+   field(INP,  "@asyn($(PORT),$(ADDR),$(TIMEOUT))DEX_READOUT_MODE")
+   field(ZRVL, "0")
+   field(ZRST, "Continuous")
+   field(ONVL, "1")
+   field(ONST, "Idle")
+   field(SCAN, "I/O Intr")
+}
 
 ######################
 # Software trigger records
