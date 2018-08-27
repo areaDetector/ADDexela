@@ -19,6 +19,13 @@ files respectively, in the configure/ directory of the appropriate release of th
 Release Notes
 =============
 
+R2-23 (August XXX, 2018)
+----
+* Added DEXReadoutMode record.  This can be set to Idle to disable continuous detector scrubbing.
+  This allows prompt response to software or hardware triggers, at the expense of potentially larger 
+  dark current in the first few frames.
+
+
 R2-2 (July 2, 2018)
 ----
 * Changed configure/RELEASE files for compatibility with areaDetector R3-3.
