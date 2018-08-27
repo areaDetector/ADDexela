@@ -130,7 +130,7 @@ static void newFrameCallback(int frameCounter, int bufferNumber, DexelaDetector 
 Dexela::Dexela(const char *portName,  int detIndex, 
                          int maxBuffers, size_t maxMemory, int priority, int stackSize)
 
-    : ADDriver(portName, 1, (int)NUM_DEXELA_PARAMS, maxBuffers, maxMemory, 
+    : ADDriver(portName, 1, 0, maxBuffers, maxMemory, 
                asynEnumMask, asynEnumMask, ASYN_CANBLOCK, 1, priority, stackSize)
 {
   int status = asynSuccess;
@@ -165,6 +165,7 @@ Dexela::Dexela(const char *portName,  int detIndex,
   createParam(DEX_LoadDefectMapFileString,           asynParamInt32,   &DEX_LoadDefectMapFile);
   createParam(DEX_SoftwareTriggerString,             asynParamInt32,   &DEX_SoftwareTrigger);
   createParam(DEX_CorrectionsDirectoryString,        asynParamOctet,   &DEX_CorrectionsDirectory);
+  createParam(DEX_ReadoutModeString,                 asynParamInt32,   &DEX_ReadoutMode);
 
   /* Set some default values for parameters */
   setStringParam(NDDriverVersion, DRIVER_VERSION);
@@ -591,6 +592,12 @@ asynStatus Dexela::writeInt32(asynUser *pasynUser, epicsInt32 value)
         "%s::%s calling DexelaDetector::SoftwareTrigger()\n",
         driverName, functionName);
       pDetector_->SoftwareTrigger();
+    }
+    else if (function == DEX_ReadoutMode) {
+      asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
+        "%s::%s calling DexelaDetector::SetReadoutMode()\n",
+        driverName, functionName);
+      pDetector_->SetReadoutMode((ReadoutModes)value);
     }
     else if (function == DEX_LoadOffsetFile) {
       loadOffsetFile();
