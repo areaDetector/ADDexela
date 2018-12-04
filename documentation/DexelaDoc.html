@@ -10,7 +10,7 @@
     <h1>
       areaDetector Dexela driver</h1>
     <h2>
-      June 23, 2015</h2>
+      December 4, 2018</h2>
     <h2>
       Mark Rivers</h2>
     <h2>
@@ -65,11 +65,14 @@
       </tr>
       <tr>
         <th>
-          Parameter index variable</th>
+          Parameter index variable
+        </th>
         <th>
-          EPICS record name</th>
+          EPICS record name
+        </th>
         <th>
-          Description</th>
+          Description
+        </th>
       </tr>
       <tr>
         <td>
@@ -100,11 +103,12 @@
           <ul>
             <li>Int. Free Run (internal trigger, frame rate limited by ADAcquireTime and readout
               time; ADAcquirePeriod is ignorred)</li>
-            <li>Int. Fixed Rate (internal trigger, frame rate controlled by ADAcquirePeriod, which must be greater
-			  than both the ADAcquireTime and the readout time)</li>
+            <li>Int. Fixed Rate (internal trigger, frame rate controlled by ADAcquirePeriod, which
+              must be greater than both the ADAcquireTime and the readout time)</li>
             <li>Int. Software (software trigger per frame)</li>
             <li>Ext. Edge Multi (one external negative edge trigger starts a sequence of multiple
-              frames; the frame rate is determined by ADAcquirePeriod, which must be greater than ACAcquireTime plus the readout time)</li>
+              frames; the frame rate is determined by ADAcquirePeriod, which must be greater than
+              ACAcquireTime plus the readout time)</li>
             <li>Ext. Edge Single (one external negative edge trigger for a each single frame)</li>
             <li>Ext. Bulb (external bulb trigger; high to expose, low to read out)</li>
           </ul>
@@ -127,19 +131,26 @@
       </tr>
       <tr>
         <th>
-          Parameter index variable</th>
+          Parameter index variable
+        </th>
         <th>
-          asyn interface</th>
+          asyn interface
+        </th>
         <th>
-          Access</th>
+          Access
+        </th>
         <th>
-          Description</th>
+          Description
+        </th>
         <th>
-          drvInfo string</th>
+          drvInfo string
+        </th>
         <th>
-          EPICS record name</th>
+          EPICS record name
+        </th>
         <th>
-          EPICS record type</th>
+          EPICS record type
+        </th>
       </tr>
       <tr>
         <td>
@@ -194,6 +205,27 @@
         <td>
           $(P)$(R)DEXFullWellMode<br />
           $(P)$(R)DEXFullWellMode_RBV</td>
+        <td>
+          mbbo<br />
+          mbbi</td>
+      </tr>
+      <tr>
+        <td>
+          DEX_ReadoutMode</td>
+        <td>
+          asynInt32</td>
+        <td>
+          r/w</td>
+        <td>
+          The detector readout mode. The choices are "Continuous" and "Idle". "Idle" disablea
+          continuous detector scrubbing, which allows prompt response to software or hardware
+          triggers, at the expense of potentially larger dark current in the first few frames
+        </td>
+        <td>
+          DEX_READOUT_MODE</td>
+        <td>
+          $(P)$(R)DEXReadoutMode<br />
+          $(P)$(R)DEXReadoutMode_RBV</td>
         <td>
           mbbo<br />
           mbbi</td>
