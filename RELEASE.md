@@ -19,7 +19,7 @@ files respectively, in the configure/ directory of the appropriate release of th
 Release Notes
 =============
 
-R2-23 (August XXX, 2018)
+R2-3 (December 4, 2018)
 ----
 * Added DEXReadoutMode record.  This can be set to Idle to disable continuous detector scrubbing.
   This allows prompt response to software or hardware triggers, at the expense of potentially larger 
