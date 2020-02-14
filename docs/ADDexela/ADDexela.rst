@@ -47,14 +47,14 @@ the standard driver parameters.
     - EPICS record name
     - Description
   * - ADNumImages
-    - ``$(P)$(R)NumImages``
+    - $(P)$(R)NumImages
     - Controls the number of images to acquire when ADImageMode is Multiple
   * - ADAcquireTime
-    - ``$(P)$(R)AcquireTime``, ``$(P)$(R)AcquireTime_RBV``
+    - $(P)$(R)AcquireTime, $(P)$(R)AcquireTime_RBV
     - When using Internal Triggers, this parameter controls the period between trigger
       pulses which will also be equal to the exposure time.
   * - ADTriggerMode
-    - ``$(P)$(R)TriggerMode, $(P)$(R)TriggerMode_RBV``
+    - $(P)$(R)TriggerMode, $(P)$(R)TriggerMode_RBV
     - Sets the trigger mode for the detector. Options are:
 
       Int. Free Run 
@@ -87,17 +87,15 @@ those in asynNDArrayDriver.h and ADDriver.h.
 .. cssclass:: table-bordered table-striped table-hover
 .. flat-table::
   :header-rows: 2
-  :widths: 30 10 10 5
+  :widths: 60 20 20
 
 
   * - **Parameter Definitions in Dexela.h and EPICS Record Definitions in Dexela.template**
   * - Description
-    - drvInfo string
     - EPICS record name
     - EPICS record type
   * - The detector serial number
-    - ``DEX_SERIAL_NUMBER``
-    - ``$(P)$(R)DEXSerialNumber``
+    - $(P)$(R)DEXSerialNumber
     - longin
   * - The detector binning mode. The standard BinX and BinY records are not used because
       the Dexela detectors only support (at most) binning values of 1, 2 and 4 independently
@@ -105,62 +103,49 @@ those in asynNDArrayDriver.h and ADDriver.h.
       Dexela 1512 only supports 1x1, 2x2, and 4x4 binning. i.e. not 1x2, 2x4, etc. The
       menu choices for this record are constructed by the driver at initialization based
       on the actual capabilities of the detector in use.
-    - ``DEX_BINNING_MODE``
-    - ``$(P)$(R)DEXBinningMode``, ``$(P)$(R)DEXBinningMode_RBV``
+    - $(P)$(R)DEXBinningMode, $(P)$(R)DEXBinningMode_RBV
     - mbbo, mbbi
   * - The detector full-well mode. The choices are "Low noise" and "High range".
-    - ``DEX_FULL_WELL_MODE``
-    - ``$(P)$(R)DEXFullWellMode``, ``$(P)$(R)DEXFullWellMode_RBV``
+    - $(P)$(R)DEXFullWellMode, $(P)$(R)DEXFullWellMode_RBV
     - mbbo, mbbi
   * - The detector readout mode. The choices are "Continuous" and "Idle". "Idle" disables
       continuous detector scrubbing, which allows prompt response to software or hardware
       triggers, at the expense of potentially larger dark current in the first few frames.
-    - ``DEX_READOUT_MODE``
-    - ``$(P)$(R)DEXReadoutMode``, ``$(P)$(R)DEXReadoutMode_RBV``
+    - $(P)$(R)DEXReadoutMode, $(P)$(R)DEXReadoutMode_RBV
     - mbbo, mbbi
   * - Trigger record for soft trigger mode
-    - ``DEX_SOFTWARE_TRIGGER``
-    - ``$(P)$(R)DEXSoftwareTrigger``
+    - $(P)$(R)DEXSoftwareTrigger
     - bo
   * - **Corrections directory**
   * - Directory where offset, gain and defect map corrections files are stored
-    - ``DEX_CORRECTIONS_DIRECTORY``
-    - ``$(P)$(R)DEXCorrectionsDir``
+    - $(P)$(R)DEXCorrectionsDir
     - waveform
   * - **Offset corrections (also called dark current corrections)**
   * - Number of frames to collect and average when collecting offset frames
-    - ``DEX_NUM_OFFSET_FRAMES``
-    - ``$(P)$(R)DEXNumOffsetFrames``
+    - $(P)$(R)DEXNumOffsetFrames
     - longout
   * - Current offset frame being collected when collecting offset frames
-    - ``DEX_CURRENT_OFFSET_FRAME``
-    - ``$(P)$(R)DEXCurrentOffsetFrame``
+    - $(P)$(R)DEXCurrentOffsetFrame
     - longin
   * - Acquire offset frames
-    - ``DEX_ACQUIRE_OFFSET``
-    - ``$(P)$(R)DEXAcquireOffset``
+    - $(P)$(R)DEXAcquireOffset
     - busy
   * - Set whether offset image is to be used. Choices are "Disable" (0) and "Enable" (1).
-    - ``DEX_USE_OFFSET``
-    - ``$(P)$(R)DEXUseOffset``
+    - $(P)$(R)DEXUseOffset
     - mbbo
   * - Report whether offset image has been collected and is available for use. Choices
       are "Not available" (0) and "Available" (1).
-    - ``DEX_OFFSET_AVAILABLE``
-    - ``$(P)$(R)DEXOffsetAvailable``
+    - $(P)$(R)DEXOffsetAvailable
     - mbbi
   * - The name of the offset file to save or load. The CorrectionsDirectory will be used
       for the path.
-    - ``DEX_OFFSET_FILE``
-    - ``$(P)$(R)DEXOffsetFile``
+    - $(P)$(R)DEXOffsetFile
     - waveform
   * - Load offset corrections from a file for use
-    - ``DEX_LOAD_OFFSET_FILE``
-    - ``$(P)$(R)DEXLoadOffsetFile``
+    - $(P)$(R)DEXLoadOffsetFile
     - longout
   * - Save offset corrections to a file
-    - ``DEX_SAVE_OFFSET_FILE``
-    - ``$(P)$(R)DEXSaveOffsetFile``
+    - $(P)$(R)DEXSaveOffsetFile
     - longout
   * - An offset that is added to the image when the offset correction is performed. ::
     
@@ -169,55 +154,43 @@ those in asynNDArrayDriver.h and ADDriver.h.
       This constant should be used to prevent
       the CorrectedImage from having any negative pixel values, which would otherwise
       be clipped to 0.
-    - ``DEX_OFFSET_CONSTANT``
-    - ``$(P)$(R)DEXOffsetContant``, ``$(P)$(R)DEXOffsetContant_RBV``
+    - $(P)$(R)DEXOffsetContant, $(P)$(R)DEXOffsetContant_RBV
     - longout , longin
   * - **Gain corrections (also called flat field corrections)**
   * - Number of frames to collect and average when collecting gain frames
-    - ``DEX_NUM_GAIN_FRAMES``
-    - ``$(P)$(R)DEXNumGainFrames``
+    - $(P)$(R)DEXNumGainFrames
     - longout
   * - Current gain frame being collected when collecting gain frames
-    - ``DEX_CURRENT_GAIN_FRAMEs``
-    - ``$(P)$(R)DEXCurrentGainFrame``
+    - $(P)$(R)DEXCurrentGainFrame
     - longin
   * - Acquire gain frames
-    - ``DEX_ACQUIRE_GAIN``
-    - ``$(P)$(R)DEXAcquireGain``
+    - $(P)$(R)DEXAcquireGain
     - busy
   * - Set whether gain image is to be used. Choices are "Disable" (0) and "Enable" (1).
-    - ``DEX_USE_GAIN``
-    - ``$(P)$(R)DEXUseGain``
+    - $(P)$(R)DEXUseGain
     - mbbo
   * - Report whether offset image has been collected and is available for use. Choices
       are "Not available" (0) and "Available" (1).
-    - ``DEX_GAIN_AVAILABLE``
-    - ``$(P)$(R)DEXGainAvailable``
+    - $(P)$(R)DEXGainAvailable
     - mbbi
   * - Load gain corrections from a file for use
-    - ``DEX_LOAD_GAIN_FILE``
-    - ``$(P)$(R)DEXLoadGainFile``
+    - $(P)$(R)DEXLoadGainFile
     - longout
   * - Save gain corrections to a file
-    - ``DEX_SAVE_GAIN_FILE``
-    - ``$(P)$(R)DEXSaveGainFile``
+    - $(P)$(R)DEXSaveGainFile
     - longout
   * - **Defect map corrections (also called bad pixel corrections)**
   * - Set whether defect map correction is to be used
-    - ``DEX_USE_DEFECT_MAP``
-    - ``$(P)$(R)DEXUseDefectMap``
+    - $(P)$(R)DEXUseDefectMap
     - mbbo
   * - Report whether defect map is available for use
-    - ``DEX_DEFECT_MAP_AVAILABLE``
-    - ``$(P)$(R)DEXdefectMapAvailable``
+    - $(P)$(R)DEXdefectMapAvailable
     - mbbi
   * - File name for defect map file
-    - ``DEX_DEFECT_MAP_FILE``
-    - ``$(P)$(R)DEXDefectMapFile``
+    - $(P)$(R)DEXDefectMapFile
     - waveform
   * - Load defect map from a file for use
-    - ``DEX_LOAD_DEFECT_MAP_FILE``
-    - ``$(P)$(R)DEXLoadDefectMapFile``
+    - $(P)$(R)DEXLoadDefectMapFile
     - longout
 
 
