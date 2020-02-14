@@ -10,5 +10,5 @@ detectors from
 
 
 Additional information:
-* [Documentation](https://cars.uchicago.edu/software/epics/DexelaDoc.html).
+* [Documentation](https://areadetector.github.io/master/ADDexela/ADDexela.html).
 * [Release notes and links to source and binary releases](RELEASE.md).
