@@ -1,5 +1,14 @@
+// ******************************************************
+//
+// Copyright (c) 2015, PerkinElmer Inc., All rights reserved
+// 
+// ******************************************************
+//
+// Contains defines and macros used throughout the API
+//
+// ******************************************************
+
 #pragma once
-/*! \file */
 
 #include "DexDefines.h"
 #include "windows.h"
@@ -260,22 +269,6 @@ typedef enum //ExposureTriggerSource
     /// </summary>
     Ext_Duration_Trig
 }ExposureTriggerSource;
-
-/// <summary>
-/// A structure used to specify the new image dimensions for geometry correction
-/// </summary>
-typedef struct // GeometryCorrectionParams
-{
-    /// <summary>
-    /// The new image width
-    /// </summary>
-    int iRefX; //1536
-    /// <summary>
-    /// The new image height
-    /// </summary>
-    int iRefY; //1944
-
-}GeometryCorrectionParams;
 
 /// <summary>
 /// Structure to hold the detector current status.

@@ -1,3 +1,13 @@
+// ******************************************************
+//
+// Copyright (c) 2015, PerkinElmer Inc., All rights reserved
+// 
+// ******************************************************
+//
+// This class is used to scan the different interfaces and give information about devices found.
+//
+// ******************************************************
+
 #pragma once
 
 #ifndef DEX_BUILD

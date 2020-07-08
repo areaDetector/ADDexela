@@ -1,5 +1,14 @@
+// ******************************************************
+//
+// Copyright (c) 2015, PerkinElmer Inc., All rights reserved
+// 
+// ******************************************************
+//
+// Contains defines and macros used throughout the API
+//
+// ******************************************************
+
 #pragma once
-/*! \file */
 
 typedef unsigned short ushort;
 typedef unsigned long ulong;
@@ -328,25 +337,102 @@ typedef unsigned char byte;
 /// Address of features register 1
 /// </summary>
 #define AddrFeaturesReg1				37
+/// <summary>
+/// Address of features register 2
+/// </summary>
+#define AddrFeaturesReg2				130
+
+#define SUPPORTS_x12_BINNING_FLAG					0x1
+#define SUPPORTS_x14_BINNING_FLAG					0x2
+#define SUPPORTS_x21_BINNING_FLAG					0x4
+#define SUPPORTS_x22_BINNING_FLAG					0x8
+#define SUPPORTS_x24_BINNING_FLAG					0x10
+#define SUPPORTS_x41_BINNING_FLAG					0x20
+#define SUPPORTS_x42_BINNING_FLAG					0x40
+#define SUPPORTS_x44_BINNING_FLAG					0x80
+#define SUPPORTS_iX22_BINNING_FLAG					0x100
+#define SUPPORTS_FPGA_CROSSTALK_CORRECITON_FLAG		0x200
+#define SUPPORTS_FPGA_LINEARIZATION_FLAG			0x400
+#define SUPPORTS_TEST_LED_PULSE_MODE_FLAG			0x800
+#define SUPPORTS_SEQUENCE_MODE_FLAG					0x1000
+#define SUPPORTS_PREPROGRAMMED_EXP_MODE_FLAG		0x2000
+#define SUPPORTS_FRAMERATE_MODE_FLAG				0x4000
+#define SUPPORTS_IDLE_MODE_FLAG						0x8000
+#define SUPPORTS_OUTPUT_PORT_EXCHANGE_FLAG			0x1
+#define SUPPORTS_DOSE_SENSING_DURATION_FLAG			0x2
+#define SUPPORTS_DOSE_SENSING_EDGE_FLAG				0x4
+#define SUPPORTS_QUERYABLE_READOUT_FLAG				0x8
+#define SUPPORTS_ROI_MODE_FLAG						0x10
+#define SUPPORTS_RESOULTION_MODE_FLAG				0x20
+#define SUPPORTS_ONBOARD_DARK_CORRECTION_FLAG		0x40
+#define SUPPORTS_ONBOARD_FLOOD_CORRECTION_FLAG		0x80
+#define SUPPORTS_ONBOARD_DEFECT_CORRECTION_FLAG		0x100
+#define SUPPORTS_ONBOARD_DATASORTING_FLAG			0x200
+#define SUPPORTS_x11_BINNING_FLAG					0x400
+#define SUPPORTS_EXPOSE_AND_READ_FLAG				0x800
+#define SUPPORTS_CONTINUOUS_READOUT_FLAG			0x1000
+#define SUPPORTS_EXT_EDGE_TRIG_FLAG					0x2000
+#define SUPPORTS_EXT_DURATION_TRIG_FLAG				0x4000
+#define SUPPORTS_SW_TRIG_FLAG						0x8000
+#define SUPPORTS_LOW_FW_MODE_FLAG					0x1
+#define SUPPORTS_HIGH_FW_MODE_FLAG					0x2
+#define SUPPORTS_DIRECT_TEMP_FLAG					0x4
+#define SUPPORTS_INDIRECT_TEMP_FLAG					0x8
+
+//this will be used to determine if any of the new flags are present
+#define EXTRA_FLAGS									0xFE00 
+/// < summary>
+/// Address of temperature readout control
+/// </summary>
+#define AddrTempCntl					116
+/// < summary>
+/// Address of temperature sensor 1
+/// </summary>
+#define AddrTempRead1					112
+/// < summary>
+/// Address of temperature readout control
+/// </summary>
+#define AddrTempCntl					116
+/// < summary>
+/// Address of temperature sensor 1
+/// </summary>
+#define AddrTempRead1					112
 
 #define AVGERAGED_FLAG					1
+#define CLEAR_AVERAGED_FLAG				0xFFFE
 #define FIXED_FLAG						2
+#define CLEAR_FIXED_FLAG				0xFFFD
 #define LINEARIZED_FLAG					4
+#define CLEAR_LINEARIZED_FLAG			0xFFFB
 #define SORTED_FLAG						8
 #define CLEAR_SORTED_FLAG				0xFFF7
 #define OPERATION_KNOWN_FLAG			0x8000
 #define CLEAR_OPERATION_KNOWN_FLAG		0x7FFF
 #define NOOP_FLAG						0x0
 #define XIS_OFFSET_CORRECTED_FLAG			1
+#define CLEAR_XIS_OFFSET_CORRECTED_FLAG		0xFFFE
 #define XIS_GAIN_CORRECTED_FLAG				2
+#define CLEAR_XIS_GAIN_CORRECTED_FLAG		0xFFFD
 #define XIS_DEFECT_CORRECTED_FLAG			4
+#define CLEAR_XIS_DEFECT_CORRECTED_FLAG		0xFFFB
 #define XIS_MULTIGAIN_CORRECTED				8		/*this is not currently used appart from in XIS*/
+#define CLEAR_XIS_MULTIGAIN_CORRECTED_FLAG	0xFFF7
 #define DEX_OFFSET_CORRECTED_FLAG			16		/*Dexela versions of the corrections*/
+#define CLEAR_DEX_OFFSET_CORRECTED_FLAG		0xFFEF
 #define DEX_GAIN_CORRECTED_FLAG				32		
+#define CLEAR_DEX_GAIN_CORRECTED_FLAG		0xFFDF
 #define DEX_DEFECT_CORRECTED_FLAG			64		
+#define CLEAR_DEX_DEFECT_CORRECTED_FLAG		0xFFBF
 #define DEX_EXTRA_PARAMS_FLAG				0x4000	/*this flag will indicate the presence of new parameters (e.g. model, binning, operations) in the HIS header*/
+#define CLEAR_DEX_EXTRA_PARAMS_FLAG			0xBFFF
 #define CORRECTION_KNOWN_FLAG			0x8000
+#define CLEAR_CORRECTION_KNOWN_FLAG		0x7FFF
 #define UNCORRECTED_FLAG				0x0
+
+#define LINEARIZAION_ENABLE_FLAG		0x4
+#define LINEARIZATION_DISABLE_FLAG		0xFFFB
+#define XTALK_CORRECTION_ENABLE_FLAG	0x4000
+#define XTALK_CORRECTION_DISABLE_FLAG	0xBFFF
 
 #define	TIFFTAG_DEX_CORRECTION_FLAGS	34595	/* New tiff-tag for storing correction flags parameter */
 #define	TIFFTAG_DEX_OPERATION_FLAGS		34596	/* New tiff-tag for storing operation flags parameter */

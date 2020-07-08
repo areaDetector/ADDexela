@@ -1,7 +1,12 @@
-// DexImage.h: Main header file for the DexImage object
+// ******************************************************
 //
-/*! \file */
-
+// Copyright (c) 2015, PerkinElmer Inc., All rights reserved
+// 
+// ******************************************************
+//
+// This class is used to perform all image related functionality. 
+//
+// ******************************************************
 
 #pragma once
 
@@ -61,7 +66,7 @@ public:
 		void FloodCorrection();
 		void DefectCorrection(int DefectFlags=31);
 		void SubImageDefectCorrection(int startCol, int startRow, int width, int height,int CorrectionsFlag=31);
-		void FullCorrection();
+		void FullCorrection(int DefectFlags=31);
 		void UnscrambleImage();
 		void AddImage();
 
@@ -83,8 +88,8 @@ public:
 		void SetDarkOffset(int offset);
 		int GetDarkOffset();
 
-		void SetLinearizationStarts(unsigned int* msArray, int msLength);
-		unsigned int* GetLinearizationStarts(int& msLength);
+		void SetLinearizationStarts(vector<unsigned int> linearizationStarts);
+		vector<unsigned int> GetLinearizationStarts();
 
 		void SetImageParameters(bins binningMode, int modelNumber);
 
@@ -108,6 +113,4 @@ public:
 		void SetFixedFlag(bool onOff);
 		void SetLinearizedFlag(bool onOff);
 		void SetSortedFlag(bool onOff);
-		
-		void SetROIParameters(unsigned short usStartColumn, unsigned short usStartRow, unsigned short usROIWidth, unsigned short usROIHeight);
 };

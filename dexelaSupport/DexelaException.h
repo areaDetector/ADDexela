@@ -1,4 +1,13 @@
-/*! \file */
+// ******************************************************
+//
+// Copyright (c) 2015, PerkinElmer Inc., All rights reserved
+// 
+// ******************************************************
+//
+// Exception handling class that is used throughout the DexelaDetector API
+//
+// ******************************************************
+
 #pragma once
 
 #ifndef DEX_BUILD
@@ -46,9 +55,11 @@ private:
 	const char*_transMsg;
 };
 
+#define __FILENAME__ (strrchr(__FILE__, '\\') ? strrchr(__FILE__, '\\') + 1 : __FILE__)
+
 #define rethrowEr(EX) \
 	throw DexelaException(EX,__FUNCTION__);\
 
 #define throwNewEr(MSG,CODE,TRANSER,TRANSMSG) \
-	throw DexelaException(MSG,CODE,__LINE__,__FILE__,__FUNCTION__,TRANSER, TRANSMSG);\
+	throw DexelaException(MSG,CODE,__LINE__,__FILENAME__,__FUNCTION__,TRANSER, TRANSMSG);\
 

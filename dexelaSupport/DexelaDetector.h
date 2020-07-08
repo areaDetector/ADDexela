@@ -1,6 +1,14 @@
-// DexelaDetector.h : main header file for the DexelaDetector DLL
+// ******************************************************
 //
-/*! \file */
+// Copyright (c) 2015, PerkinElmer Inc., All rights reserved
+// 
+// ******************************************************
+//
+// This class is used to control any interface-type Detector and acquire images from it. 
+// It will provide all the basic functionality required for all different Dexela detectors. 
+//
+// ******************************************************
+
 #pragma once
 #ifndef DEX_BUILD
 #ifdef _DEBUG
@@ -15,6 +23,7 @@
 #include "DexImage.h"
 #include "DexelaException.h"
 #include <boost/shared_ptr.hpp>
+#include <string>
 
 
 #pragma warning(disable: 4251)
@@ -78,7 +87,7 @@ public:
 	int GetFieldCount(void);
 	void ReadBuffer(int bufNum, byte* buffer);
 	void ReadBuffer(int bufNum, DexImage &img, int iZ=0);
-	void WriteBuffer(int bufNum, byte* buffer);
+	void WriteBuffer(int bufNum, byte* buffer, int size);
 
 	void SetFullWellMode(FullWellModes fwm);
 	void SetExposureMode( ExposureModes mode);
@@ -135,20 +144,11 @@ public:
 	void SetCallbackData(void* cbData);
 	void* GetCallbackData();
 	void StopCallback();
-
 	void CheckForCallbackError();
 	void CheckForLiveError();
-
-	void SetPreProgrammedExposureTimes(int numExposures, float* exposuretimes_ms);
-
-	void SetROICoordinates(unsigned short usStartColumn, unsigned short usStartRow, unsigned short usROIWidth, unsigned short usROIHeight);
-	void GetROICoordinates(unsigned short& usStartColumn,unsigned short& usStartRow,unsigned short& usROIWidth,unsigned short& usROIHeight);
-	void EnableROIMode(bool bEnableROI);
-	bool IsROIModeEnabled();
+	void SetPreProgrammedExposureTimes(std::vector<float> fltVector);
 	unsigned short GetSensorHeight(unsigned short uiSensorID=1);
 	unsigned short GetSensorWidth(unsigned short uiSensorID=1);
-	bool IsFrameCountDisplayed();
-	void DisplayFrameCount(bool bEnable);
 	void SetSlowed(bool flag);
 
 	void SetReadoutMode(ReadoutModes mode);
@@ -158,6 +158,18 @@ public:
 	int QueryTriggerSource( ExposureTriggerSource ets);
 	int QueryFullWellMode(FullWellModes fwm);
 	int QueryBinningMode(bins flag);
+	int QueryTempReporting();
+	float GetDetectorTemp(int SensorNum = 0);
+	std::vector<float> GetPreProgrammedExposureTimes();
+
+	int QueryOnBoardLinearization();
+	void ToggleOnBoardLinearization(bool onOff);
+	bool GetOnBoardLinearizationState();
+	int QueryOnBoardXTalkCorrection();
+	void ToggleOnBoardXTalkCorrection(bool onOff);
+	bool GetOnBoardXTalkCorrectionState();
+	int QueryOnBoardUnscrambling();
+	std::string SendCommand(std::string cmd);
 
 	friend class baseBusScanner;
 	friend class MockSetter;

@@ -1,4 +1,14 @@
-/*! \file */
+// ******************************************************
+//
+// Copyright (c) 2015, PerkinElmer Inc., All rights reserved
+// 
+// ******************************************************
+//
+// This class is used to control CameraLink Type Detectors. It will give access to functions 
+// that are not available to other interface - type detectors.
+//
+// ******************************************************
+
 #pragma once
 #include "dexeladetector.h"
 
