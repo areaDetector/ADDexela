@@ -184,17 +184,14 @@ Dexela::Dexela(const char *portName,  int detIndex,
     pBusScanner_ = new BusScanner();
     numDevices = pBusScanner_->EnumerateDevices();
     if (numDevices <= 0) {
-      asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-        "%s::%s Error: no Dexela devices found\n",
-        driverName, functionName);
-      return;
+      throwNewEr("No Dexela devices found", BAD_COMMS, 0, "");
     }
 
     if (detIndex > numDevices-1) {
       asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
         "%s::%s Error: detector index %d not available, only %d devices found\n",
         driverName, functionName, detIndex, numDevices);
-      return;
+      throwNewEr("Invalid device index", BAD_COMMS, 0, "");
     }
     
     devInfo_ = pBusScanner_->GetDevice(detIndex);
@@ -227,6 +224,8 @@ Dexela::Dexela(const char *portName,  int detIndex,
 
   } catch (DexelaException &e) {
     reportError(functionName, e);
+    this->deviceIsConnected = false;
+    this->disconnect(pasynUserSelf);
     return;
   }
  
