@@ -224,7 +224,7 @@ Dexela::Dexela(const char *portName,  int detIndex,
 
   } catch (DexelaException &e) {
     reportError(functionName, e);
-    this->deviceIsConnected = false;
+    this->deviceIsReachable = false;
     this->disconnect(pasynUserSelf);
     return;
   }
