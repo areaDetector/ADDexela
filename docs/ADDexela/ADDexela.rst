@@ -222,10 +222,16 @@ the detailed documentation on the DexelaConfig function in the
 `Dexela.cpp documentation`_ and in the documentation for the
 constructor for the `Dexela class`_.
 
-There an example IOC boot directory and startup script provided with 
-areaDetector: :doc:`st_cmd`.
+Example st.cmd startup file
+---------------------------
 
+.. toctree::
+   :hidden:
+   
+   st_cmd.rst
 
+There is an example IOC boot directory and startup script
+:doc:`st_cmd` provided with areaDetector.
 
 MEDM screens
 ------------
