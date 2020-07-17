@@ -1,31 +1,22 @@
 // ******************************************************
 //
-// Copyright (c) 2015, PerkinElmer Inc., All rights reserved
-// 
-// ******************************************************
-//
-// This class is used to scan the different interfaces and give information about devices found.
+// Copyright (c) 2020, Varex Imaging Corp., All rights reserved
 //
 // ******************************************************
+//
+// This class is used to scan the different interfaces and give information
+// about devices found.
+//
+// ******************************************************
+
+/// \file
 
 #pragma once
 
-#ifndef DEX_BUILD
-#ifdef _DEBUG
-#pragma comment(lib,"BusScanner-d.lib")
-#else
-#pragma comment(lib,"BusScanner.lib")
-#endif
-#endif
-
-/*! \file */
 #include "DexDefs.h"
 #include "DexelaDetector.h"
-#include <vector>
-#include <boost/shared_ptr.hpp>
 
-using namespace std;
-
+#include <memory>
 
 /// <summary>
 /// This class is used to scan the different interfaces and give information about devices found.
@@ -44,11 +35,9 @@ public:
 	DevInfo GetDeviceGE(int index);
 	DevInfo GetDeviceCL(int index);
 
-	friend class ScanMockSetter;
+	friend class base_BusScan;
+	friend class BusScan;
 
-#ifndef MOCK_TEST
 private:
-#endif
-	boost::shared_ptr<baseBusScanner> baseScanner;
-
+	std::shared_ptr<baseBusScanner> baseScanner;
 };
