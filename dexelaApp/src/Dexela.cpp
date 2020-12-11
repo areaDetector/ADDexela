@@ -139,7 +139,6 @@ Dexela::Dexela(const char *portName,  int detIndex,
   int numDevices;
   
   /* Add parameters for this driver */
-  createParam(DEX_SerialNumberString,                asynParamInt32,   &DEX_SerialNumber);
   createParam(DEX_BinningModeString,                 asynParamInt32,   &DEX_BinningMode);
   createParam(DEX_FullWellModeString,                asynParamInt32,   &DEX_FullWellMode);
   createParam(DEX_AcquireOffsetString,               asynParamInt32,   &DEX_AcquireOffset);
@@ -209,7 +208,11 @@ Dexela::Dexela(const char *portName,  int detIndex,
     setStringParam(ADManufacturer, "Perkin Elmer");
     sprintf(modelName_, "Dexela %d", modelNumber_);
     setStringParam(ADModel, modelName_);
-    setIntegerParam(DEX_SerialNumber, serialNumber_);
+    char tempString[40];
+    sprintf(tempString, "%d", serialNumber_);
+    setStringParam(ADSerialNumber, tempString);
+    sprintf(tempString, "%d", firmwareVersion_);
+    setStringParam(ADFirmwareVersion, tempString);
     snapBuffer_ = 0;
 
     // Set callback
