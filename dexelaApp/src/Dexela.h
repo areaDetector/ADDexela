@@ -14,12 +14,11 @@
 #ifndef Dexela_H
 #define Dexela_H
 
-#define DRIVER_VERSION "2.2"
+#define DRIVER_VERSION "2.4"
 
 #include "ADDriver.h"
 #include "DexelaDetector.h"
 
-#define DEX_SerialNumberString               "DEX_SERIAL_NUMBER"
 #define DEX_BinningModeString                "DEX_BINNING_MODE"
 #define DEX_FullWellModeString               "DEX_FULL_WELL_MODE"
 #define DEX_CorrectionsDirectoryString       "DEX_CORRECTIONS_DIRECTORY"
@@ -71,9 +70,8 @@ public:
   ~Dexela();
 
 protected:
-  int DEX_SerialNumber;
-  #define DEX_FIRST_PARAM DEX_SerialNumber
   int DEX_BinningMode;
+  #define DEX_FIRST_PARAM DEX_BinningMode
   int DEX_FullWellMode;
   int DEX_CorrectionsDirectory;
   int DEX_AcquireOffset;
@@ -113,6 +111,7 @@ private:
   char           modelName_[80];
   int            modelNumber_;
   int            serialNumber_;
+  int            firmwareVersion_;
   bins           binningMode_;
   int            snapBuffer_;
   int            numBuffers_;
