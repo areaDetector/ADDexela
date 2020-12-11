@@ -94,9 +94,6 @@ those in asynNDArrayDriver.h and ADDriver.h.
   * - Description
     - EPICS record name
     - EPICS record type
-  * - The detector serial number
-    - $(P)$(R)DEXSerialNumber
-    - longin
   * - The detector binning mode. The standard BinX and BinY records are not used because
       the Dexela detectors only support (at most) binning values of 1, 2 and 4 independently
       for X and Y. Specific detectors may restrict the choices further. For example the
