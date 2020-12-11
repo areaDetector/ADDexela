@@ -8,13 +8,6 @@ include "ADBase.template"
 # Setup records
 ######################
 
-record(longin, "$(P)$(R)DEXSerialNumber")
-{
-   field(DTYP, "asynInt32")
-   field(INP,  "@asyn($(PORT),$(ADDR),$(TIMEOUT))DEX_SERIAL_NUMBER")
-   field(SCAN, "I/O Intr")
-}
-
 ######################
 # Binning records
 ######################
