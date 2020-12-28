@@ -18,6 +18,11 @@ files respectively, in the configure/ directory of the appropriate release of th
 
 Release Notes
 =============
+R2-4 (December XXX, 2020)
+----
+* Removed DEXSerialNumber record.
+* Implemented ADSerialNumber and ADFirmwareVersion parameters.
+
 
 R2-3 (December 4, 2018)
 ----
