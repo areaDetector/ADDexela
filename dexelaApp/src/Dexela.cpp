@@ -487,7 +487,7 @@ void Dexela::newFrameCallback(int frameCounter, int bufferNumber)
       dims[1] = pDetector_->GetBufferYdim();
       asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
         "%s::%s called DexelaDetector::GetBufferYdim() returned dims[1]=%d\n",
-        driverName, functionName, dims[0]);
+        driverName, functionName, dims[1]);
 
       this->pArrays[0] = pNDArrayPool->alloc(2, dims, dataType, 0, NULL);
       if (this->pArrays[0] == NULL) {
