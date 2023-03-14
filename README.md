@@ -10,5 +10,5 @@ detectors from
 
 
 Additional information:
-* [Documentation](https://areadetector.github.io/master/ADDexela/ADDexela.html).
+* [Documentation](https://areadetector.github.io/areaDetector/ADDexela/ADDexela.html).
 * [Release notes and links to source and binary releases](RELEASE.md).
