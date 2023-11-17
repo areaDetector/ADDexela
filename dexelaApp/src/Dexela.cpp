@@ -506,8 +506,7 @@ void Dexela::newFrameCallback(int frameCounter, int bufferNumber)
 
       /* Put the frame number and time stamp into the buffer */
       pImage->uniqueId = frameCounter;
-      updateTimeStamp(&pImage->epicsTS);
-      pImage->timeStamp = pImage->epicsTS.secPastEpoch + pImage->epicsTS.nsec / 1.e9;
+      updateTimeStamps(pImage);
 
       /* Get any attributes that have been defined for this driver */
       getAttributes(pImage->pAttributeList);
