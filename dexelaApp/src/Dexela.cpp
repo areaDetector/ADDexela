@@ -349,7 +349,6 @@ void Dexela::newFrameCallback(int frameCounter, int bufferNumber)
   size_t        dims[2];
   NDArray       *pImage;
   NDDataType_t  dataType = NDUInt16;
-  epicsTimeStamp currentTime;
   DexImage      dataImage;
   static const char *functionName = "newFrameCallback";
     
@@ -507,9 +506,7 @@ void Dexela::newFrameCallback(int frameCounter, int bufferNumber)
 
       /* Put the frame number and time stamp into the buffer */
       pImage->uniqueId = frameCounter;
-      epicsTimeGetCurrent(&currentTime);
-      pImage->timeStamp = currentTime.secPastEpoch + currentTime.nsec / 1.e9;
-      updateTimeStamp(&pImage->epicsTS);
+      updateTimeStamps(pImage);
 
       /* Get any attributes that have been defined for this driver */
       getAttributes(pImage->pAttributeList);
